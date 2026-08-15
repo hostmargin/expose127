@@ -101,11 +101,34 @@ function renderLogs({ subdomain, rows }) {
   return shell(`${subdomain} — logs`, `
     <p class="sub"><a href="/dashboard">← back to dashboard</a></p>
     <h1><code>${subdomain}</code></h1>
-    <p class="sub">Last ${rows.length} requests</p>
+    <p class="sub">Last ${rows.length} requests · <span id="live-status">live</span></p>
     <div class="card">
       <table><thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>
-      <tbody>${body}</tbody></table>
+      <tbody id="log-rows">${body}</tbody></table>
     </div>
+    <script>
+      (function () {
+        var statusEl = document.getElementById('live-status');
+        var tbody = document.getElementById('log-rows');
+        var timer = setInterval(refresh, 4000);
+
+        async function refresh() {
+          try {
+            var res = await fetch(location.pathname, { headers: { 'X-Requested-With': 'fetch' } });
+            if (!res.ok || res.redirected) throw new Error('session expired');
+            var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            var freshRows = doc.getElementById('log-rows');
+            if (!freshRows) throw new Error('unexpected response');
+            tbody.innerHTML = freshRows.innerHTML;
+            statusEl.textContent = 'live';
+          } catch (err) {
+            statusEl.textContent = 'reconnecting…';
+            clearInterval(timer);
+            setTimeout(function () { location.reload(); }, 2000);
+          }
+        }
+      })();
+    </script>
   `);
 }
 
