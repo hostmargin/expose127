@@ -1,0 +1,930 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>expose127 — Instant public URLs for your localhost</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Oxanium:wght@300;400;500;600;700;800&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <!-- ── Primary Meta ── -->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>expose127 — Instant public URLs for your localhost</title>
+<meta name="description" content="Expose your localhost to the internet instantly. Get a random public HTTPS URL for any local port — no config, no account needed. Powered by hostmargin.com.">
+<meta name="keywords" content="localhost tunnel, expose localhost, ngrok alternative, public url, localhost to internet, expose127, hostmargin, npx tunnel, laravel tunnel, node tunnel">
+<meta name="author" content="Hostmargin">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://expose127.hostmargin.com">
+
+<!-- ── Favicon ── -->
+<link rel="icon" type="image/svg+xml" href="/favicon.ico">
+<link rel="apple-touch-icon" href="/favicon.ico">
+
+<!-- ── Open Graph (Facebook, LinkedIn, WhatsApp) ── -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://expose127.hostmargin.com">
+<meta property="og:title" content="expose127 — Instant public URLs for your localhost">
+<meta property="og:description" content="Expose your localhost to the internet instantly. Get a random public HTTPS URL for any local port. No config, no account. Just one command.">
+<meta property="og:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="expose127 — Instant public URLs for your localhost">
+<meta property="og:site_name" content="expose127">
+<meta property="og:locale" content="en_US">
+
+<!-- ── Twitter / X Card ── -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:url" content="https://expose127.hostmargin.com">
+<meta name="twitter:title" content="expose127 — Instant public URLs for your localhost">
+<meta name="twitter:description" content="Expose your localhost to the internet instantly. No config, no account. Just run: npx expose127 8000">
+<meta name="twitter:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+<meta name="twitter:image:alt" content="expose127 banner">
+<meta name="twitter:creator" content="@hostmargin">
+<meta name="twitter:site" content="@hostmargin">
+
+<!-- ── Theme color (browser tab color on mobile) ── -->
+<meta name="theme-color" content="#00e5ff">
+<meta name="msapplication-TileColor" content="#06080d">
+
+<!-- ── Structured Data (Google rich results) ── -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "expose127",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows, macOS, Linux",
+  "description": "Expose your localhost to the internet instantly via hmrg.xyz. Get a public HTTPS URL for any local port with one command.",
+  "url": "https://expose127.hostmargin.com",
+  "downloadUrl": "https://www.npmjs.com/package/expose127",
+  "version": "1.0.3",
+  "author": {
+    "@type": "Organization",
+    "name": "Hostmargin",
+    "url": "https://hmrg.xyz"
+  },
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #06080d;
+      --surface:  #0b0f18;
+      --card:     #0f1520;
+      --border:   #1a2535;
+      --accent:   #00e5ff;
+      --accent2:  #8b5cf6;
+      --green:    #00ffa3;
+      --orange:   #ff6b35;
+      --text:     #dde6f0;
+      --muted:    #5a6e82;
+      --dim:      #2d3f52;
+      --font-display: 'Oxanium', sans-serif;
+      --font-body:    'Rajdhani', sans-serif;
+      --font-mono:    'JetBrains Mono', monospace;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 16px;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none;
+      z-index: 999;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .orb {
+      position: fixed;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      animation: drift 14s ease-in-out infinite;
+    }
+    .orb1 { width: 700px; height: 700px; background: rgba(0,229,255,0.05); top: -300px; left: -200px; }
+    .orb2 { width: 600px; height: 600px; background: rgba(139,92,246,0.06); bottom: -200px; right: -100px; animation-delay: -7s; }
+    .orb3 { width: 300px; height: 300px; background: rgba(255,107,53,0.04); top: 40%; left: 60%; animation-delay: -3s; }
+
+    @keyframes drift {
+      0%,100% { transform: translate(0,0) scale(1); }
+      33%  { transform: translate(20px,30px) scale(1.02); }
+      66%  { transform: translate(-15px,10px) scale(0.98); }
+    }
+
+    /* ── NAV ── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 1rem 2.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(6,8,13,0.8);
+      backdrop-filter: blur(24px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-family: var(--font-display);
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--accent);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+    }
+    .logo span { color: var(--muted); }
+
+    .nav-links { display: flex; gap: 2rem; align-items: center; }
+
+    nav a {
+      font-family: var(--font-display);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.78rem;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    nav a:hover { color: var(--accent); }
+
+    .nav-cta {
+      color: var(--accent) !important;
+      border: 1px solid rgba(0,229,255,0.4);
+      padding: 0.45rem 1.2rem;
+      border-radius: 3px;
+      transition: all 0.2s !important;
+    }
+    .nav-cta:hover { background: var(--accent) !important; color: #000 !important; box-shadow: 0 0 20px rgba(0,229,255,0.3); }
+
+    /* ── HERO ── */
+    .hero {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 8rem 2rem 4rem;
+      text-align: center;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.6rem;
+      background: rgba(0,229,255,0.06);
+      border: 1px solid rgba(0,229,255,0.15);
+      color: var(--accent);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      padding: 0.45rem 1.1rem;
+      border-radius: 3px;
+      margin-bottom: 2.5rem;
+      letter-spacing: 0.08em;
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .badge-dot {
+      width: 6px; height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%,100% { opacity:1; box-shadow: 0 0 8px var(--green); }
+      50%      { opacity:.5; box-shadow: 0 0 2px var(--green); }
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(3.5rem, 9vw, 7rem);
+      font-weight: 800;
+      line-height: 0.95;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      margin-bottom: 1.8rem;
+      animation: fadeUp 0.5s 0.1s ease both;
+    }
+
+    h1 .line1 { display: block; color: var(--text); }
+    h1 .line2 {
+      display: block;
+      background: linear-gradient(120deg, var(--accent) 0%, var(--accent2) 50%, var(--orange) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      filter: drop-shadow(0 0 30px rgba(0,229,255,0.25));
+    }
+
+    .subtitle {
+      font-family: var(--font-body);
+      font-size: clamp(1.05rem, 2.5vw, 1.25rem);
+      font-weight: 400;
+      color: var(--muted);
+      max-width: 520px;
+      line-height: 1.65;
+      margin-bottom: 3rem;
+      letter-spacing: 0.02em;
+      animation: fadeUp 0.5s 0.2s ease both;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-bottom: 5rem;
+      animation: fadeUp 0.5s 0.3s ease both;
+    }
+
+    .btn-primary {
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0.9rem 2.2rem;
+      border-radius: 3px;
+      text-decoration: none;
+      border: none;
+      cursor: pointer;
+      background: var(--accent);
+      color: #000;
+      transition: all 0.2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
+      transform: translateX(-100%);
+      transition: transform 0.5s;
+    }
+    .btn-primary:hover::after { transform: translateX(100%); }
+    .btn-primary:hover { box-shadow: 0 0 30px rgba(0,229,255,0.4); transform: translateY(-2px); }
+
+    .btn-secondary {
+      font-family: var(--font-display);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      padding: 0.9rem 2.2rem;
+      border-radius: 3px;
+      text-decoration: none;
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); transform: translateY(-2px); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ── TERMINAL ── */
+    .terminal-wrap {
+      width: 100%;
+      max-width: 700px;
+      animation: fadeUp 0.5s 0.4s ease both;
+    }
+
+    .terminal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 0 0 1px rgba(0,229,255,0.04), 0 40px 80px rgba(0,0,0,0.7);
+      text-align: left;
+    }
+
+    .terminal-bar {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.85rem 1.2rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .dot { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; }
+    .dot-y { background: #febc2e; }
+    .dot-g { background: #28c840; }
+
+    .terminal-title {
+      flex: 1;
+      text-align: center;
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      color: var(--dim);
+      letter-spacing: 0.06em;
+    }
+
+    .terminal-body {
+      padding: 1.5rem;
+      font-family: var(--font-mono);
+      font-size: 0.79rem;
+      line-height: 1.9;
+      min-height: 300px;
+    }
+
+    .t-line { display: flex; align-items: flex-start; gap: 0.5rem; opacity: 0; }
+    .t-line.show { animation: lineIn 0.25s ease forwards; }
+    .t-blank { height: 0.5rem; }
+
+    @keyframes lineIn {
+      from { opacity: 0; transform: translateX(-6px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+
+    .t-prompt { color: var(--green); flex-shrink: 0; }
+    .t-cmd    { color: var(--text); }
+    .t-out    { color: var(--muted); padding-left: 1rem; }
+
+    .cursor {
+      display: inline-block;
+      width: 8px; height: 15px;
+      background: var(--accent);
+      vertical-align: middle;
+      animation: blink 1s step-end infinite;
+      box-shadow: 0 0 8px var(--accent);
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* ── SHARED SECTION ── */
+    .section-label {
+      font-family: var(--font-display);
+      font-size: 0.68rem;
+      color: var(--accent);
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      margin-bottom: 1rem;
+      text-align: center;
+    }
+
+    .section-title {
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      text-align: center;
+      margin-bottom: 0.75rem;
+      line-height: 1.05;
+    }
+
+    .section-sub {
+      font-family: var(--font-body);
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 4rem;
+      font-size: 1.1rem;
+      font-weight: 400;
+      letter-spacing: 0.03em;
+    }
+
+    /* ── STEPS ── */
+    .steps-section {
+      position: relative;
+      z-index: 1;
+      padding: 7rem 2rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 1.5rem;
+    }
+
+    .step-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .step-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s;
+    }
+
+    .step-card:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
+    .step-card:hover::after { transform: scaleX(1); }
+
+    .step-num {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      color: var(--accent);
+      margin-bottom: 1rem;
+      font-weight: 700;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+    }
+
+    .step-title {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .step-desc {
+      font-family: var(--font-body);
+      color: var(--muted);
+      font-size: 1rem;
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      font-weight: 400;
+    }
+
+    .step-code {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 0.9rem 1.1rem;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--green);
+      line-height: 1.8;
+    }
+    .step-code .cmd-prefix { color: var(--dim); }
+    .step-code .comment { color: var(--dim); }
+    .step-code .url { color: var(--accent); }
+    .step-code .ok { color: var(--green); }
+
+    /* ── FEATURES ── */
+    .features-section {
+      position: relative;
+      z-index: 1;
+      padding: 4rem 2rem 7rem;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 1rem;
+      margin-top: 3rem;
+    }
+
+    .feature {
+      padding: 1.8rem;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--card);
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,229,255,0.03), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .feature:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-3px); }
+    .feature:hover::before { opacity: 1; }
+
+    .feature-icon { font-size: 1.6rem; margin-bottom: 1rem; }
+
+    .feature-title {
+      font-family: var(--font-display);
+      font-size: 0.9rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+    }
+
+    .feature-desc {
+      font-family: var(--font-body);
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.55;
+      font-weight: 400;
+    }
+
+    /* ── CTA ── */
+    .cta-section {
+      position: relative;
+      z-index: 1;
+      padding: 4rem 2rem 6rem;
+      text-align: center;
+    }
+
+    .cta-box {
+      max-width: 700px;
+      margin: 0 auto;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 3.5rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(0,229,255,0.04), rgba(139,92,246,0.04));
+    }
+
+    .cta-box::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 10%; right: 10%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    }
+
+    .cta-box h2 {
+      font-family: var(--font-display);
+      font-size: clamp(1.8rem, 4vw, 2.5rem);
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+      position: relative;
+    }
+
+    .cta-box p {
+      font-family: var(--font-body);
+      color: var(--muted);
+      margin-bottom: 2.5rem;
+      position: relative;
+      font-size: 1.05rem;
+      letter-spacing: 0.03em;
+    }
+
+    .install-box {
+      display: inline-flex;
+      align-items: center;
+      gap: 1.2rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 1rem 1.6rem;
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      color: var(--green);
+      margin-bottom: 2rem;
+      position: relative;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .install-box:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(0,229,255,0.1); }
+
+    .copy-btn {
+      font-family: var(--font-display);
+      font-size: 0.62rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.7rem;
+      border-radius: 3px;
+      cursor: pointer;
+      background: none;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ── PLATFORMS ── */
+    .platforms {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin-top: 2rem;
+    }
+
+    .platform-badge {
+      font-family: var(--font-display);
+      font-size: 0.65rem;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      padding: 0.3rem 0.85rem;
+      border-radius: 3px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+
+    /* ── FOOTER ── */
+    footer {
+      position: relative;
+      z-index: 1;
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      color: var(--dim);
+      font-family: var(--font-mono);
+      font-size: 0.7rem;
+      letter-spacing: 0.06em;
+    }
+    footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
+    footer a:hover { color: var(--accent); }
+
+    /* ── REVEAL ── */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s ease, transform 0.6s ease;
+    }
+    .reveal.visible { opacity: 1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+
+<div class="orb orb1"></div>
+<div class="orb orb2"></div>
+<div class="orb orb3"></div>
+
+<nav>
+  <div class="logo">
+    <img src="logo-expose127.png" alt="expose127 logo" width="150">
+  </div>
+  <div class="nav-links">
+    <a href="#how">How it works</a>
+    <a href="#features">Features</a>
+    <a href="https://npmjs.com/package/expose127" target="_blank">npm</a>
+    <a href="https://npmjs.com/package/expose127" class="nav-cta" target="_blank">Get started →</a>
+  </div>
+</nav>
+
+<section class="hero">
+  <div class="badge"><div class="badge-dot"></div>v1.0.4 — live on npm</div>
+
+  <h1>
+    <span class="line1">Your localhost,</span>
+    <span class="line2">live in seconds.</span>
+  </h1>
+
+  <p class="subtitle">
+    expose127 creates an instant public HTTPS URL for any port on your machine.
+    Share your Laravel, Node, React — no config, no account needed.
+  </p>
+
+  <div class="hero-cta">
+    <a href="#how" class="btn-primary">See how it works</a>
+    <a href="https://npmjs.com/package/expose127" target="_blank" class="btn-secondary">View on npm →</a>
+  </div>
+
+  <div class="terminal-wrap">
+    <div class="terminal">
+      <div class="terminal-bar">
+        <div class="dot dot-r"></div>
+        <div class="dot dot-y"></div>
+        <div class="dot dot-g"></div>
+        <div class="terminal-title">PowerShell — expose127</div>
+      </div>
+      <div class="terminal-body" id="terminal"></div>
+    </div>
+  </div>
+</section>
+
+<section class="steps-section" id="how">
+  <div class="section-label reveal">// how it works</div>
+  <h2 class="section-title reveal">Three steps to go public</h2>
+  <p class="section-sub reveal">No sign-up. No dashboard. Just one command.</p>
+
+  <div class="steps">
+    <div class="step-card reveal">
+      <div class="step-num">Step 01</div>
+      <div class="step-title">Start your local server</div>
+      <div class="step-desc">Run your Laravel, Node.js, React or any app locally as you normally would.</div>
+      <div class="step-code">
+        <div><span class="cmd-prefix">$ </span>php artisan serve</div>
+        <div><span class="cmd-prefix">$ </span>npm run dev</div>
+        <div><span class="cmd-prefix">$ </span>python manage.py runserver</div>
+      </div>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">Step 02</div>
+      <div class="step-title">Run expose127</div>
+      <div class="step-desc">Point expose127 at your local port. No install needed — npx runs it instantly.</div>
+      <div class="step-code">
+        <div><span class="cmd-prefix">$ </span>npx expose127 8000</div>
+        <div class="comment" style="margin-top:0.4rem"># with a custom subdomain:</div>
+        <div><span class="cmd-prefix">$ </span>npx expose127 8000 --subdomain myapp</div>
+      </div>
+    </div>
+    <div class="step-card reveal">
+      <div class="step-num">Step 03</div>
+      <div class="step-title">Share the URL</div>
+      <div class="step-desc">Get an instant public HTTPS URL powered by hostmargin.com. Share it with anyone.</div>
+      <div class="step-code">
+        <div class="url">https://myapp.hmrg.xyz</div>
+        <div class="ok" style="margin-top:0.5rem">✔  Live — share with anyone</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="features-section" id="features">
+  <div class="section-label reveal">// features</div>
+  <h2 class="section-title reveal">Everything you need</h2>
+
+  <div class="features">
+    <div class="feature reveal">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Zero config</div>
+      <div class="feature-desc">No account, no dashboard, no YAML. One command and you're live.</div>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon">🔒</div>
+      <div class="feature-title">HTTPS by default</div>
+      <div class="feature-desc">Every tunnel URL is served over HTTPS via Cloudflare. Secure out of the box.</div>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon">🌍</div>
+      <div class="feature-title">Custom subdomains</div>
+      <div class="feature-desc">Use --subdomain to get a fixed, memorable URL every time.</div>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon">🔄</div>
+      <div class="feature-title">Auto reconnect</div>
+      <div class="feature-desc">Lost connection? expose127 reconnects with exponential back-off.</div>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon">📊</div>
+      <div class="feature-title">Live request log</div>
+      <div class="feature-desc">See every request in real time — method, status, path, duration.</div>
+    </div>
+    <div class="feature reveal">
+      <div class="feature-icon">💻</div>
+      <div class="feature-title">Cross-platform</div>
+      <div class="feature-desc">Works on Windows, macOS and Linux. Node.js 16+ required.</div>
+    </div>
+  </div>
+
+  <div class="platforms reveal">
+    <span class="platform-badge">Windows ✓</span>
+    <span class="platform-badge">macOS ✓</span>
+    <span class="platform-badge">Linux ✓</span>
+    <span class="platform-badge">Node 16+ ✓</span>
+    <span class="platform-badge">Laravel ✓</span>
+    <span class="platform-badge">Node.js ✓</span>
+    <span class="platform-badge">React ✓</span>
+    <span class="platform-badge">Django ✓</span>
+  </div>
+</section>
+
+<section class="cta-section">
+  <div class="cta-box reveal">
+    <h2>Ready to go public?</h2>
+    <p>No sign-up needed. Works right now.</p>
+    <div class="install-box" onclick="copyCmd()">
+      <span>$ npx expose127 8000</span>
+      <button class="copy-btn" id="copy-btn">copy</button>
+    </div>
+    <br>
+    <a href="https://npmjs.com/package/expose127" target="_blank" class="btn-primary">View on npm →</a>
+  </div>
+</section>
+
+<footer>
+  expose127 — powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
+  <a href="https://npmjs.com/package/expose127" target="_blank">npm</a> &nbsp;·&nbsp;
+  MIT License
+</footer>
+
+<script>
+  const lines = [
+    { type:'cmd',  text:'npx expose127 8000 --subdomain myapp' },
+    { type:'blank' },
+    { type:'out',  text:'  +--------------------------------------------------+' },
+    { type:'out',  text:'  |   EXPOSE127  --  instant public tunnel URLs      |' },
+    { type:'out',  text:'  +--------------------------------------------------+' },
+    { type:'out',  text:'  Instant public URLs  |  v1.0.4  |  hmrg.xyz' },
+    { type:'blank' },
+    { type:'ok',   text:'  ✔  Tunnel established!' },
+    { type:'blank' },
+    { type:'kv',   key:'  Public URL ', val:'https://myapp.hmrg.xyz', vc:'#00e5ff' },
+    { type:'kv',   key:'  Forwarding ', val:'https://myapp.hmrg.xyz → localhost:8000', vc:'#5a6e82' },
+    { type:'kv',   key:'  Status     ', val:'online', vc:'#00ffa3' },
+    { type:'blank' },
+    { type:'out',  text:'  ──────────────────────────────────────────────────' },
+    { type:'out',  text:'  Time       Method    Status   Path' },
+    { type:'out',  text:'  ──────────────────────────────────────────────────' },
+    { type:'req',  time:'14:23:01', method:'GET',  status:'200', path:'/' },
+    { type:'req',  time:'14:23:01', method:'GET',  status:'200', path:'/assets/app.css' },
+    { type:'req',  time:'14:23:03', method:'GET',  status:'200', path:'/assets/app.js' },
+    { type:'req',  time:'14:23:06', method:'POST', status:'201', path:'/api/login' },
+    { type:'req',  time:'14:23:09', method:'GET',  status:'200', path:'/dashboard' },
+  ];
+
+  const terminal = document.getElementById('terminal');
+  let idx = 0;
+
+  const sc = s => s.startsWith('2') ? '#00ffa3' : s.startsWith('3') ? '#00e5ff' : s.startsWith('4') ? '#febc2e' : '#ff5f57';
+  const mc = m => ({GET:'#00e5ff',POST:'#8b5cf6',PUT:'#febc2e',DELETE:'#ff5f57',PATCH:'#febc2e'})[m] || '#dde6f0';
+
+  const cursor = document.createElement('div');
+  cursor.className = 't-line show';
+  cursor.innerHTML = `<span class="t-prompt">$</span><span class="t-cmd"> </span><span class="cursor"></span>`;
+
+  function render(line) {
+    const d = document.createElement('div');
+    d.className = 't-line';
+    if (line.type === 'blank') { d.className = 't-blank'; }
+    else if (line.type === 'cmd')  { d.innerHTML = `<span class="t-prompt">$</span><span class="t-cmd"> ${line.text}</span>`; }
+    else if (line.type === 'out')  { d.innerHTML = `<span class="t-out">${line.text}</span>`; }
+    else if (line.type === 'ok')   { d.innerHTML = `<span style="color:#00ffa3;padding-left:1rem">${line.text}</span>`; }
+    else if (line.type === 'kv')   { d.innerHTML = `<span style="padding-left:1rem"><span style="color:#2d3f52">${line.key}  </span><span style="color:${line.vc}">${line.val}</span></span>`; }
+    else if (line.type === 'req')  { d.innerHTML = `<span class="t-out"><span style="color:#2d3f52">${line.time}  </span><span style="color:${mc(line.method)}">${line.method.padEnd(8)}</span><span style="color:${sc(line.status)}">${line.status}      </span><span style="color:#5a6e82">${line.path}</span></span>`; }
+    terminal.appendChild(d);
+    requestAnimationFrame(() => d.classList.add('show'));
+  }
+
+  function run() {
+    if (idx < lines.length) {
+      if (terminal.contains(cursor)) terminal.removeChild(cursor);
+      render(lines[idx]);
+      const delay = lines[idx].type === 'cmd' ? 900 : lines[idx].type === 'blank' ? 80 : 100;
+      idx++;
+      setTimeout(() => { terminal.appendChild(cursor); setTimeout(run, delay); }, 20);
+    } else {
+      setTimeout(() => { terminal.innerHTML = ''; idx = 0; terminal.appendChild(cursor); setTimeout(run, 800); }, 5000);
+    }
+  }
+
+  terminal.appendChild(cursor);
+  setTimeout(run, 1000);
+
+  const obs = new IntersectionObserver((entries) => {
+    entries.forEach((e, i) => {
+      if (e.isIntersecting) { setTimeout(() => e.target.classList.add('visible'), i * 70); obs.unobserve(e.target); }
+    });
+  }, { threshold: 0.08 });
+  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
+
+  function copyCmd() {
+    navigator.clipboard.writeText('npx expose127 8000').then(() => {
+      const btn = document.getElementById('copy-btn');
+      btn.textContent = 'copied!';
+      btn.style.color = '#00ffa3';
+      btn.style.borderColor = '#00ffa3';
+      setTimeout(() => { btn.textContent = 'copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
