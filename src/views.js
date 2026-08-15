@@ -91,6 +91,11 @@ const SHELL_STYLE = `
   .token-copy{background:transparent;border:1px solid var(--border);color:var(--muted);
               padding:.25rem .65rem;font-size:.62rem}
   .token-copy:hover{border-color:var(--accent);color:var(--accent);box-shadow:none;transform:none}
+
+  footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;
+         color:var(--dim);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em}
+  footer a{color:var(--muted);text-decoration:none;transition:color .2s}
+  footer a:hover{color:var(--accent)}
 `;
 
 function shell(title, body) {
@@ -109,13 +114,18 @@ function shell(title, body) {
 <body>
   <div class="bg-grid"></div>
   <nav>
-    <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127">expose127</a>
+    <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127"></a>
     <div class="nav-links">
       <a href="/">← Site</a>
       <a href="/logout" class="nav-cta">Sign out</a>
     </div>
   </nav>
   <div class="wrap">${body}</div>
+  <footer>
+    expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
+    <a href="https://npmjs.com/package/expose127" target="_blank">npm</a> &nbsp;·&nbsp;
+    MIT License
+  </footer>
 </body>
 </html>`;
 }
