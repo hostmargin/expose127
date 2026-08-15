@@ -1,6 +1,7 @@
 {
   "name": "expose127-dashboard",
   "version": "1.0.0",
+  "private": true,
   "description": "expose127.hostmargin.com — landing page + customer dashboard (tunnels & request logs)",
   "main": "src/server.js",
   "scripts": {
