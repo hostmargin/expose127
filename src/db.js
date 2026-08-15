@@ -58,6 +58,8 @@ const stmts = {
     ORDER BY ts DESC
     LIMIT ?
   `),
+
+  requestCount:     db.prepare('SELECT COUNT(*) AS c FROM requests WHERE client_id = ?'),
 };
 
 function generateToken() {
@@ -87,10 +89,15 @@ function recentRequests(clientId, subdomain, limit) {
   return stmts.recentRequests.all(clientId, subdomain, limit);
 }
 
+function requestCountForClient(clientId) {
+  return stmts.requestCount.get(clientId).c;
+}
+
 module.exports = {
   createTokenForClient,
   listTokensForClient,
   listActiveTunnels,
   tunnelBelongsTo,
   recentRequests,
+  requestCountForClient,
 };

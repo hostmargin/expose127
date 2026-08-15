@@ -57,7 +57,19 @@ app.get('/dashboard', requireSession, (req, res) => {
   const { clientId, email } = req.session;
   const tunnels = db.listActiveTunnels(clientId);
   const tokens = db.listTokensForClient(clientId);
-  res.send(views.renderDashboard({ user: { email }, tunnels, tokens }));
+  const totalRequests = db.requestCountForClient(clientId);
+  res.send(views.renderDashboard({ user: { email }, tunnels, tokens, totalRequests }));
+});
+
+app.get('/logout', (req, res) => {
+  res.setHeader('Set-Cookie', cookie.serialize('exp127_session', '', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    maxAge: 0,
+    path: '/',
+  }));
+  res.redirect('/');
 });
 
 app.post('/dashboard/token', requireSession, (req, res) => {
