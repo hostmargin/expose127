@@ -17,6 +17,9 @@ module.exports = {
   // How many recent requests to show per tunnel in the dashboard
   LOG_PAGE_SIZE: 100,
 
+  // How many past (disconnected) tunnels to show in the dashboard's history
+  TUNNEL_HISTORY_SIZE: 20,
+
   // Base domain tunnels are published under — a request logged for
   // subdomain "myapp" was publicly reachable at https://myapp.<TUNNEL_DOMAIN>
   TUNNEL_DOMAIN: process.env.TUNNEL_DOMAIN || 'hmrg.xyz',
@@ -26,4 +29,13 @@ module.exports = {
 
   // SSO handoff token lifetime (ms) — short, single use in practice
   SSO_TOKEN_TTL_MS: 60 * 1000, // 60s
+
+  // ── Admin panel (/admin) — single hardcoded operator account ────────────────
+  ADMIN_EMAIL: process.env.ADMIN_EMAIL || '',
+  ADMIN_PASSWORD_HASH: process.env.ADMIN_PASSWORD_HASH || '',
+  ADMIN_SECRET: process.env.ADMIN_SECRET || '',
+  ADMIN_SESSION_TTL_MS: 4 * 60 * 60 * 1000, // 4h — shorter than client sessions on purpose
+
+  // How many rows to show per list in the admin panel (across ALL clients)
+  ADMIN_PAGE_SIZE: 200,
 };

@@ -1614,6 +1614,9 @@ const SHELL_STYLE = `
   .logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--font-display);
         font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;font-size:1.05rem}
   .logo img{display:block;height:26px;width:auto}
+  .admin-badge{font-family:var(--font-mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;
+      color:var(--red);border:1px solid var(--red);border-radius:3px;padding:.15rem .45rem;
+      text-transform:uppercase}
   .nav-links{display:flex;gap:1.75rem;align-items:center}
   nav a{font-family:var(--font-display);color:var(--muted);text-decoration:none;font-size:.75rem;
         font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:color .2s}
@@ -1666,6 +1669,7 @@ const SHELL_STYLE = `
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--green);
        box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
   .dot.err{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+  .dot.inactive{background:var(--dim);box-shadow:none;animation:none}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .live{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
         font-size:.78rem;color:var(--muted)}
@@ -1700,7 +1704,14 @@ const SHELL_STYLE = `
   footer a:hover{color:var(--accent)}
 `;
 
-function shell(title, body) {
+function shell(title, body, navOverride) {
+  const nav = navOverride || `
+    <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127"></a>
+    <div class="nav-links">
+      <a href="/">← Site</a>
+      <a href="/logout" class="nav-cta">Sign out</a>
+    </div>`;
+
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1715,13 +1726,7 @@ function shell(title, body) {
 </head>
 <body>
   <div class="bg-grid"></div>
-  <nav>
-    <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127"></a>
-    <div class="nav-links">
-      <a href="/">← Site</a>
-      <a href="/logout" class="nav-cta">Sign out</a>
-    </div>
-  </nav>
+  <nav>${nav}</nav>
   <div class="wrap">${body}</div>
   <footer>
     expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
@@ -1732,6 +1737,15 @@ function shell(title, body) {
   </footer>
 </body>
 </html>`;
+}
+
+function adminNav(showSignOut) {
+  return `
+    <a href="/admin" class="logo"><img src="/logo-expose127.png" alt="expose127"><span class="admin-badge">ADMIN</span></a>
+    <div class="nav-links">
+      <a href="/">← Site</a>
+      ${showSignOut ? '<a href="/admin/logout" class="nav-cta">Sign out</a>' : ''}
+    </div>`;
 }
 
 function statusBucket(code) {
@@ -1752,7 +1766,7 @@ function maskToken(token) {
   return `${token.slice(0, 8)}••••••••••••${token.slice(-4)}`;
 }
 
-function renderDashboard({ user, tunnels, tokens, totalRequests }) {
+function renderDashboard({ user, tunnels, pastTunnels, tokens, totalRequests }) {
   const tunnelRows = tunnels.length
     ? tunnels.map(t => `
       <tr>
@@ -1762,13 +1776,28 @@ function renderDashboard({ user, tunnels, tokens, totalRequests }) {
       </tr>`).join('')
     : `<tr><td colspan="3" class="empty">No active tunnels right now. Start one with <code>npx expose127 8000 --token &lt;your-token&gt;</code></td></tr>`;
 
+  const pastTunnelRows = pastTunnels.length
+    ? pastTunnels.map(t => `
+      <tr>
+        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
+        <td>${new Date(t.connected_at).toLocaleString()}</td>
+        <td>${new Date(t.closed_at).toLocaleString()}</td>
+        <td><a class="btn-ghost" href="/dashboard/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
+      </tr>`).join('')
+    : `<tr><td colspan="4" class="empty">No past tunnels yet — closed tunnels will show up here.</td></tr>`;
+
   const tokenRows = tokens.length
     ? tokens.map(t => `
       <tr>
         <td><span class="token-cell"><code>${maskToken(t.token)}</code><button class="token-copy" data-token="${t.token}">copy</button></span></td>
         <td>${new Date(t.created_at).toLocaleString()}</td>
+        <td>
+          <form method="post" action="/dashboard/token/${encodeURIComponent(t.token)}/revoke" onsubmit="return confirm('Revoke this token? Any CLI using it will stop being able to connect.')">
+            <button type="submit" class="btn-ghost">Revoke</button>
+          </form>
+        </td>
       </tr>`).join('')
-    : `<tr><td colspan="2" class="empty">No tokens yet — generate one below to link the CLI to your account.</td></tr>`;
+    : `<tr><td colspan="3" class="empty">No tokens yet — generate one below to link the CLI to your account.</td></tr>`;
 
   return shell('Dashboard', `
     <h1>Hi ${user.email || 'there'}</h1>
@@ -1789,9 +1818,17 @@ function renderDashboard({ user, tunnels, tokens, totalRequests }) {
     </div>
 
     <div class="card">
+      <h2>Tunnel history</h2>
+      <div class="table-scroll">
+      <table><thead><tr><th>Subdomain</th><th>Connected</th><th>Disconnected</th><th></th></tr></thead>
+      <tbody>${pastTunnelRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
       <h2>API tokens</h2>
       <div class="table-scroll">
-      <table><thead><tr><th>Token</th><th>Created</th></tr></thead>
+      <table><thead><tr><th>Token</th><th>Created</th><th></th></tr></thead>
       <tbody>${tokenRows}</tbody></table>
       </div>
       <form method="post" action="/dashboard/token" style="margin-top:1.25rem">
@@ -1813,7 +1850,7 @@ function renderDashboard({ user, tunnels, tokens, totalRequests }) {
   `);
 }
 
-function renderLogs({ subdomain, rows, tunnelDomain }) {
+function renderLogs({ subdomain, rows, tunnelDomain, backHref, backLabel }) {
   const body = rows.length
     ? rows.map(r => {
         const bucket = statusBucket(r.status_code);
@@ -1830,7 +1867,7 @@ function renderLogs({ subdomain, rows, tunnelDomain }) {
     : `<tr><td colspan="5" class="empty">No requests logged yet for this tunnel.</td></tr>`;
 
   return shell(`${subdomain} — logs`, `
-    <p class="sub"><a href="/dashboard">← back to dashboard</a></p>
+    <p class="sub"><a href="${backHref || '/dashboard'}">← ${backLabel || 'back to dashboard'}</a></p>
     <h1><code>${subdomain}</code></h1>
     <p class="sub">Last ${rows.length} requests · <span class="live"><span class="dot" id="live-dot"></span><span id="live-status">live</span></span></p>
 
@@ -1920,4 +1957,124 @@ function renderLogs({ subdomain, rows, tunnelDomain }) {
   `);
 }
 
-module.exports = { renderLanding, renderPrivacy, renderTerms, renderDashboard, renderLogs };
+function renderAdminLogin({ error }) {
+  return shell('Admin login', `
+    <div class="card" style="max-width:420px;margin:2rem auto 0">
+      <h2>Admin login</h2>
+      ${error ? `<p class="sub" style="color:var(--red)">${error}</p>` : ''}
+      <form method="post" action="/admin/login">
+        <div style="margin-bottom:1rem">
+          <label class="sub" style="display:block;margin-bottom:.4rem">Email</label>
+          <input type="email" name="email" required autofocus
+            style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+                   font-family:var(--font-mono);font-size:.9rem;padding:.6rem .8rem;border-radius:4px">
+        </div>
+        <div style="margin-bottom:1.5rem">
+          <label class="sub" style="display:block;margin-bottom:.4rem">Password</label>
+          <input type="password" name="password" required
+            style="width:100%;background:var(--surface);border:1px solid var(--border);color:var(--text);
+                   font-family:var(--font-mono);font-size:.9rem;padding:.6rem .8rem;border-radius:4px">
+        </div>
+        <button type="submit" style="width:100%">Sign in</button>
+      </form>
+    </div>
+  `, adminNav(false));
+}
+
+function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, requests, tunnelDomain, pageSize }) {
+  const tunnelRows = activeTunnels.length
+    ? activeTunnels.map(t => `
+      <tr>
+        <td><span class="tunnel-name"><span class="dot"></span><code>${t.subdomain}</code></span></td>
+        <td>${t.client_id}</td>
+        <td>${new Date(t.connected_at).toLocaleString()}</td>
+        <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
+      </tr>`).join('')
+    : `<tr><td colspan="4" class="empty">No active tunnels right now.</td></tr>`;
+
+  const pastTunnelRows = pastTunnels.length
+    ? pastTunnels.map(t => `
+      <tr>
+        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
+        <td>${t.client_id}</td>
+        <td>${new Date(t.connected_at).toLocaleString()}</td>
+        <td>${new Date(t.closed_at).toLocaleString()}</td>
+        <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" class="empty">No past tunnels yet.</td></tr>`;
+
+  const tokenRows = tokens.length
+    ? tokens.map(t => `
+      <tr>
+        <td><code>${maskToken(t.token)}</code></td>
+        <td>${t.client_id}</td>
+        <td>${t.email || ''}</td>
+        <td>${new Date(t.created_at).toLocaleString()}</td>
+        <td>${t.revoked_at ? `<span class="badge b-4xx">revoked</span>` : `<span class="badge b-2xx">active</span>`}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" class="empty">No tokens yet.</td></tr>`;
+
+  const requestRows = requests.length
+    ? requests.map(r => `
+      <tr>
+        <td>${new Date(r.ts).toLocaleString()}</td>
+        <td>${r.client_id}</td>
+        <td><code>${r.subdomain}</code></td>
+        <td>${methodLabel(r.method)}</td>
+        <td><code>${r.path}</code></td>
+        <td>${statusBadge(r.status_code)}</td>
+        <td>${r.duration_ms}ms</td>
+      </tr>`).join('')
+    : `<tr><td colspan="7" class="empty">No requests logged yet.</td></tr>`;
+
+  return shell('Admin panel', `
+    <h1>Admin panel</h1>
+    <p class="sub">Every client's tunnels, tokens, and requests — most recent ${pageSize} per list.</p>
+
+    <div class="stat-row">
+      <div class="stat"><div class="n">${stats.active_tunnels}</div><div class="l">Active tunnels</div></div>
+      <div class="stat"><div class="n">${stats.total_tunnels}</div><div class="l">Tunnels ever</div></div>
+      <div class="stat"><div class="n">${stats.active_tokens}</div><div class="l">Active tokens</div></div>
+      <div class="stat"><div class="n">${stats.total_tokens}</div><div class="l">Tokens ever</div></div>
+      <div class="stat"><div class="n">${stats.total_requests.toLocaleString()}</div><div class="l">Total requests</div></div>
+      <div class="stat"><div class="n">${stats.distinct_clients}</div><div class="l">Distinct clients</div></div>
+    </div>
+
+    <div class="card">
+      <h2>Active tunnels (all clients)</h2>
+      <div class="table-scroll">
+      <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th></th></tr></thead>
+      <tbody>${tunnelRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tunnel history (all clients)</h2>
+      <div class="table-scroll">
+      <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th>Disconnected</th><th></th></tr></thead>
+      <tbody>${pastTunnelRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>API tokens (all clients)</h2>
+      <div class="table-scroll">
+      <table><thead><tr><th>Token</th><th>Client</th><th>Email</th><th>Created</th><th>Status</th></tr></thead>
+      <tbody>${tokenRows}</tbody></table>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Recent requests (all clients, all tunnels)</h2>
+      <div class="table-scroll">
+      <table><thead><tr><th>Time</th><th>Client</th><th>Subdomain</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>
+      <tbody>${requestRows}</tbody></table>
+      </div>
+    </div>
+  `, adminNav(true));
+}
+
+module.exports = {
+  renderLanding, renderPrivacy, renderTerms, renderDashboard, renderLogs,
+  renderAdminLogin, renderAdminDashboard,
+};

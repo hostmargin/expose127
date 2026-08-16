@@ -20,7 +20,8 @@ db.exec(`
     token      TEXT PRIMARY KEY,
     client_id  INTEGER NOT NULL,
     email      TEXT,
-    created_at INTEGER
+    created_at INTEGER,
+    revoked_at INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS tunnels (
@@ -44,11 +45,20 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_requests_client ON requests(client_id, ts DESC);
 `);
 
+// Migration for tokens tables created before revoked_at existed (CREATE TABLE
+// IF NOT EXISTS above only applies to brand-new databases).
+const tokenColumns = db.prepare("PRAGMA table_info(tokens)").all().map(c => c.name);
+if (!tokenColumns.includes('revoked_at')) {
+  db.exec('ALTER TABLE tokens ADD COLUMN revoked_at INTEGER');
+}
+
 const stmts = {
   insertToken:      db.prepare('INSERT INTO tokens (token, client_id, email, created_at) VALUES (?, ?, ?, ?)'),
-  tokensForClient:  db.prepare('SELECT token, created_at FROM tokens WHERE client_id = ? ORDER BY created_at DESC'),
+  tokensForClient:  db.prepare('SELECT token, created_at FROM tokens WHERE client_id = ? AND revoked_at IS NULL ORDER BY created_at DESC'),
+  revokeToken:      db.prepare('UPDATE tokens SET revoked_at = ? WHERE token = ? AND client_id = ? AND revoked_at IS NULL'),
 
   activeTunnels:    db.prepare('SELECT subdomain, connected_at FROM tunnels WHERE client_id = ? AND closed_at IS NULL ORDER BY connected_at DESC'),
+  inactiveTunnels:  db.prepare('SELECT subdomain, connected_at, closed_at FROM tunnels WHERE client_id = ? AND closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT ?'),
   tunnelOwner:      db.prepare('SELECT client_id FROM tunnels WHERE subdomain = ?'),
 
   recentRequests:   db.prepare(`
@@ -60,6 +70,21 @@ const stmts = {
   `),
 
   requestCount:     db.prepare('SELECT COUNT(*) AS c FROM requests WHERE client_id = ?'),
+
+  // ── Admin-wide (all clients, no client_id filter) ─────────────────────────
+  adminStats: db.prepare(`
+    SELECT
+      (SELECT COUNT(*) FROM tunnels WHERE closed_at IS NULL)     AS active_tunnels,
+      (SELECT COUNT(*) FROM tunnels)                             AS total_tunnels,
+      (SELECT COUNT(*) FROM tokens WHERE revoked_at IS NULL)     AS active_tokens,
+      (SELECT COUNT(*) FROM tokens)                              AS total_tokens,
+      (SELECT COUNT(*) FROM requests)                            AS total_requests,
+      (SELECT COUNT(DISTINCT client_id) FROM tunnels)            AS distinct_clients
+  `),
+  allActiveTunnels:   db.prepare('SELECT subdomain, client_id, connected_at FROM tunnels WHERE closed_at IS NULL ORDER BY connected_at DESC LIMIT ?'),
+  allInactiveTunnels: db.prepare('SELECT subdomain, client_id, connected_at, closed_at FROM tunnels WHERE closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT ?'),
+  allTokens:          db.prepare('SELECT token, client_id, email, created_at, revoked_at FROM tokens ORDER BY created_at DESC LIMIT ?'),
+  allRequests:        db.prepare('SELECT client_id, subdomain, method, path, status_code, duration_ms, ts FROM requests ORDER BY ts DESC LIMIT ?'),
 };
 
 function generateToken() {
@@ -76,13 +101,30 @@ function listTokensForClient(clientId) {
   return stmts.tokensForClient.all(clientId);
 }
 
+// Soft delete — the row stays (for audit/history), just hidden from the
+// active list. clientId in the WHERE clause ensures you can only revoke
+// your own tokens.
+function revokeToken(token, clientId) {
+  const result = stmts.revokeToken.run(Date.now(), token, clientId);
+  return result.changes > 0;
+}
+
 function listActiveTunnels(clientId) {
   return stmts.activeTunnels.all(clientId);
+}
+
+function listInactiveTunnels(clientId, limit) {
+  return stmts.inactiveTunnels.all(clientId, limit);
 }
 
 function tunnelBelongsTo(subdomain, clientId) {
   const row = stmts.tunnelOwner.get(subdomain);
   return !!row && row.client_id === clientId;
+}
+
+function tunnelOwnerClientId(subdomain) {
+  const row = stmts.tunnelOwner.get(subdomain);
+  return row ? row.client_id : null;
 }
 
 function recentRequests(clientId, subdomain, limit) {
@@ -93,11 +135,41 @@ function requestCountForClient(clientId) {
   return stmts.requestCount.get(clientId).c;
 }
 
+// ── Admin-wide (all clients) ─────────────────────────────────────────────────
+
+function adminStats() {
+  return stmts.adminStats.get();
+}
+
+function allActiveTunnels(limit) {
+  return stmts.allActiveTunnels.all(limit);
+}
+
+function allInactiveTunnels(limit) {
+  return stmts.allInactiveTunnels.all(limit);
+}
+
+function allTokens(limit) {
+  return stmts.allTokens.all(limit);
+}
+
+function allRequests(limit) {
+  return stmts.allRequests.all(limit);
+}
+
 module.exports = {
   createTokenForClient,
   listTokensForClient,
+  revokeToken,
   listActiveTunnels,
+  listInactiveTunnels,
   tunnelBelongsTo,
+  tunnelOwnerClientId,
   recentRequests,
   requestCountForClient,
+  adminStats,
+  allActiveTunnels,
+  allInactiveTunnels,
+  allTokens,
+  allRequests,
 };
