@@ -11,9 +11,23 @@ const views = require('./views');
 
 const app = express();
 
-// Existing static landing page (index.html, favicon.ico, logo-expose127.png)
-// lives one level up from src/ — untouched by this app.
-app.use(express.static(path.join(__dirname, '..'), { index: 'index.html' }));
+// ── Public site (landing + legal pages) — server-rendered so they share one
+// nav/footer via views.js instead of three copy-pasted static files ─────────
+app.get('/', (req, res) => {
+  res.send(views.renderLanding());
+});
+
+app.get('/privacy', (req, res) => {
+  res.send(views.renderPrivacy());
+});
+
+app.get('/terms', (req, res) => {
+  res.send(views.renderTerms());
+});
+
+// Remaining static assets (favicon.ico, logo-expose127.png) live one level
+// up from src/.
+app.use(express.static(path.join(__dirname, '..'), { index: false }));
 
 function readSession(req) {
   const cookies = cookie.parse(req.headers.cookie || '');
@@ -86,7 +100,7 @@ app.get('/dashboard/tunnels/:subdomain/logs', requireSession, (req, res) => {
   }
 
   const rows = db.recentRequests(clientId, subdomain, cfg.LOG_PAGE_SIZE);
-  res.send(views.renderLogs({ subdomain, rows }));
+  res.send(views.renderLogs({ subdomain, rows, tunnelDomain: cfg.TUNNEL_DOMAIN }));
 });
 
 app.listen(cfg.PORT, () => {

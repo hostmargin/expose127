@@ -17,6 +17,10 @@ module.exports = {
   // How many recent requests to show per tunnel in the dashboard
   LOG_PAGE_SIZE: 100,
 
+  // Base domain tunnels are published under — a request logged for
+  // subdomain "myapp" was publicly reachable at https://myapp.<TUNNEL_DOMAIN>
+  TUNNEL_DOMAIN: process.env.TUNNEL_DOMAIN || 'hmrg.xyz',
+
   // Session cookie lifetime (ms)
   SESSION_TTL_MS: 12 * 60 * 60 * 1000, // 12h
 
