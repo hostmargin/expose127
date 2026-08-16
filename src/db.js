@@ -70,10 +70,14 @@ const stmts = {
   inactiveTunnels:  db.prepare('SELECT subdomain, connected_at, closed_at FROM tunnels WHERE client_id = ? AND closed_at IS NOT NULL ORDER BY closed_at DESC LIMIT ?'),
   tunnelOwner:      db.prepare('SELECT client_id FROM tunnels WHERE subdomain = ?'),
 
+  // "IS", not "=" — clientId can be NULL for an anonymous tunnel, and
+  // "column = NULL" never matches in SQL even when the column itself is
+  // NULL. IS behaves exactly like = for non-NULL operands, so this is safe
+  // for the normal (real clientId) case too.
   recentRequests:   db.prepare(`
     SELECT method, path, status_code, duration_ms, ts
     FROM requests
-    WHERE client_id = ? AND subdomain = ?
+    WHERE client_id IS ? AND subdomain = ?
     ORDER BY ts DESC
     LIMIT ?
   `),
@@ -131,9 +135,13 @@ function tunnelBelongsTo(subdomain, clientId) {
   return !!row && row.client_id === clientId;
 }
 
+// Returns undefined if no such tunnel exists at all, or the owning
+// client_id if it does — which may itself be null for an anonymous tunnel.
+// Callers must check `=== undefined` for "not found", not falsiness, since
+// null is a legitimate (anonymous) result here.
 function tunnelOwnerClientId(subdomain) {
   const row = stmts.tunnelOwner.get(subdomain);
-  return row ? row.client_id : null;
+  return row === undefined ? undefined : row.client_id;
 }
 
 function recentRequests(clientId, subdomain, limit) {

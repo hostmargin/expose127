@@ -1449,8 +1449,8 @@ ${siteNav()}
   <h2>1. Information we collect</h2>
   <p><strong>Account information.</strong> When you sign in to the dashboard, hostmargin's login system hands off your account ID and email address to expose127 so we can identify your account. We do not operate a separate sign-up form — your account lives with hostmargin.</p>
   <p><strong>API tokens.</strong> Tokens you generate in the dashboard to link the CLI to your account. Tokens are stored so we can recognize your tunnels; treat them like a password.</p>
-  <p><strong>Tunnel metadata.</strong> The subdomain you request and the times your tunnel connects and disconnects.</p>
-  <p><strong>Request logs.</strong> For tunnels running under your account, we record the HTTP method, path, status code, duration, and timestamp of each request so you can review them in your dashboard. This is metadata about traffic through your own tunnel — it is visible only to your account and is not shared with other customers.</p>
+  <p><strong>Tunnel metadata.</strong> The subdomain you request and the times your tunnel connects and disconnects — recorded for every tunnel, whether or not it's linked to an account.</p>
+  <p><strong>Request logs.</strong> We record the HTTP method, path, status code, duration, and timestamp of every request that passes through any expose127 tunnel, whether or not it's linked to an account. If your tunnel is linked to your account (via an API token), this is metadata about traffic through your own tunnel — visible only to your account in your dashboard, never to other customers. If you run expose127 without a token, your tunnel is anonymous: this data isn't linked to any identifiable account and isn't shown in any customer-facing dashboard.</p>
   <p><strong>Cookies.</strong> A single session cookie (<code>exp127_session</code>) keeps you signed in to the dashboard. It is HTTP-only, marked secure, and expires automatically after 12 hours.</p>
 
   <h2>2. How we use information</h2>
@@ -1466,7 +1466,7 @@ ${siteNav()}
   <p>Information is processed on hostmargin's infrastructure to operate the Service. We disclose information to third parties only where required by law, to protect our rights or the security of the Service, or with your consent.</p>
 
   <h2>4. Data retention</h2>
-  <p>Account, token, and tunnel records are kept for as long as your account remains active. Request logs are retained only as long as necessary to support the dashboard's debugging features and may be purged periodically. You can ask us to delete your data at any time using the contact details below.</p>
+  <p>Account, token, and tunnel records tied to your account are kept for as long as your account remains active. Anonymous tunnel and request data (not linked to any account) is retained only as long as necessary to operate and secure the Service. Request logs are retained only as long as necessary to support the dashboard's debugging features and may be purged periodically. You can ask us to delete your account-linked data at any time using the contact details below.</p>
 
   <h2>5. Security</h2>
   <p>Tunnel traffic and the dashboard are served over HTTPS. Session cookies and account handoff tokens are signed with HMAC-SHA256 and cannot be forged or read by the browser. No method of transmission or storage is 100% secure, and we cannot guarantee absolute security.</p>
@@ -1670,6 +1670,10 @@ const SHELL_STYLE = `
        box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
   .dot.err{background:var(--amber);box-shadow:0 0 8px var(--amber)}
   .dot.inactive{background:var(--dim);box-shadow:none;animation:none}
+
+  .pager{align-items:center;justify-content:center;gap:1.25rem;margin-top:1.25rem}
+  .pager button:disabled{opacity:.35;cursor:not-allowed}
+  .pager button:disabled:hover{border-color:var(--border);color:var(--text);box-shadow:none}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .live{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
         font-size:.78rem;color:var(--muted)}
@@ -1759,6 +1763,12 @@ function statusBadge(code) {
 function methodLabel(method) {
   const cls = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? `m-${method}` : '';
   return `<span class="method ${cls}">${method}</span>`;
+}
+
+function clientLabel(clientId) {
+  return clientId === null || clientId === undefined
+    ? '<span class="sub" style="margin:0;font-style:italic">anonymous</span>'
+    : clientId;
 }
 
 function maskToken(token) {
@@ -1981,12 +1991,21 @@ function renderAdminLogin({ error }) {
   `, adminNav(false));
 }
 
+function pagerControls(id) {
+  return `
+    <div class="pager" id="${id}" style="display:none">
+      <button type="button" class="btn-ghost prev">← Prev</button>
+      <span class="sub page-info" style="margin:0"></span>
+      <button type="button" class="btn-ghost next">Next →</button>
+    </div>`;
+}
+
 function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, requests, tunnelDomain, pageSize }) {
   const tunnelRows = activeTunnels.length
     ? activeTunnels.map(t => `
-      <tr>
+      <tr class="data-row">
         <td><span class="tunnel-name"><span class="dot"></span><code>${t.subdomain}</code></span></td>
-        <td>${t.client_id}</td>
+        <td>${clientLabel(t.client_id)}</td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
       </tr>`).join('')
@@ -1994,9 +2013,9 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
   const pastTunnelRows = pastTunnels.length
     ? pastTunnels.map(t => `
-      <tr>
+      <tr class="data-row">
         <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
-        <td>${t.client_id}</td>
+        <td>${clientLabel(t.client_id)}</td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td>${new Date(t.closed_at).toLocaleString()}</td>
         <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
@@ -2005,7 +2024,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
   const tokenRows = tokens.length
     ? tokens.map(t => `
-      <tr>
+      <tr class="data-row">
         <td><code>${maskToken(t.token)}</code></td>
         <td>${t.client_id}</td>
         <td>${t.email || ''}</td>
@@ -2016,9 +2035,9 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
   const requestRows = requests.length
     ? requests.map(r => `
-      <tr>
+      <tr class="data-row">
         <td>${new Date(r.ts).toLocaleString()}</td>
-        <td>${r.client_id}</td>
+        <td>${clientLabel(r.client_id)}</td>
         <td><code>${r.subdomain}</code></td>
         <td>${methodLabel(r.method)}</td>
         <td><code>${r.path}</code></td>
@@ -2044,33 +2063,71 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
       <h2>Active tunnels (all clients)</h2>
       <div class="table-scroll">
       <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th></th></tr></thead>
-      <tbody>${tunnelRows}</tbody></table>
+      <tbody id="admin-tunnels-rows">${tunnelRows}</tbody></table>
       </div>
+      ${pagerControls('admin-tunnels-pager')}
     </div>
 
     <div class="card">
       <h2>Tunnel history (all clients)</h2>
       <div class="table-scroll">
       <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th>Disconnected</th><th></th></tr></thead>
-      <tbody>${pastTunnelRows}</tbody></table>
+      <tbody id="admin-history-rows">${pastTunnelRows}</tbody></table>
       </div>
+      ${pagerControls('admin-history-pager')}
     </div>
 
     <div class="card">
       <h2>API tokens (all clients)</h2>
       <div class="table-scroll">
       <table><thead><tr><th>Token</th><th>Client</th><th>Email</th><th>Created</th><th>Status</th></tr></thead>
-      <tbody>${tokenRows}</tbody></table>
+      <tbody id="admin-tokens-rows">${tokenRows}</tbody></table>
       </div>
+      ${pagerControls('admin-tokens-pager')}
     </div>
 
     <div class="card">
       <h2>Recent requests (all clients, all tunnels)</h2>
       <div class="table-scroll">
       <table><thead><tr><th>Time</th><th>Client</th><th>Subdomain</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>
-      <tbody>${requestRows}</tbody></table>
+      <tbody id="admin-requests-rows">${requestRows}</tbody></table>
       </div>
+      ${pagerControls('admin-requests-pager')}
     </div>
+
+    <script>
+      function paginateTable(tbodyId, pagerId, pageSize) {
+        var tbody = document.getElementById(tbodyId);
+        var pager = document.getElementById(pagerId);
+        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.data-row'));
+        if (rows.length <= pageSize) return;
+
+        var page = 0;
+        var totalPages = Math.ceil(rows.length / pageSize);
+        var prevBtn = pager.querySelector('.prev');
+        var nextBtn = pager.querySelector('.next');
+        var info = pager.querySelector('.page-info');
+
+        function render() {
+          rows.forEach(function (row, i) {
+            row.style.display = (i >= page * pageSize && i < (page + 1) * pageSize) ? '' : 'none';
+          });
+          info.textContent = 'Page ' + (page + 1) + ' of ' + totalPages + ' (' + rows.length + ' rows)';
+          prevBtn.disabled = page === 0;
+          nextBtn.disabled = page === totalPages - 1;
+        }
+
+        prevBtn.addEventListener('click', function () { if (page > 0) { page--; render(); } });
+        nextBtn.addEventListener('click', function () { if (page < totalPages - 1) { page++; render(); } });
+        pager.style.display = 'flex';
+        render();
+      }
+
+      paginateTable('admin-tunnels-rows', 'admin-tunnels-pager', 10);
+      paginateTable('admin-history-rows', 'admin-history-pager', 10);
+      paginateTable('admin-tokens-rows', 'admin-tokens-pager', 10);
+      paginateTable('admin-requests-rows', 'admin-requests-pager', 10);
+    </script>
   `, adminNav(true));
 }
 

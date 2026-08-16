@@ -186,7 +186,7 @@ app.get('/admin', requireAdminSession, (req, res) => {
 app.get('/admin/tunnels/:subdomain/logs', requireAdminSession, (req, res) => {
   const { subdomain } = req.params;
   const ownerClientId = db.tunnelOwnerClientId(subdomain);
-  if (ownerClientId === null) {
+  if (ownerClientId === undefined) {
     return res.status(404).send('Tunnel not found.');
   }
 
