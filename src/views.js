@@ -887,7 +887,7 @@ function renderLanding() {
   <meta property="og:url" content="https://expose127.hostmargin.com">
   <meta property="og:title" content="expose127 — Instant Localhost Tunnels (ngrok Alternative)">
   <meta property="og:description" content="Turn your localhost into a public HTTPS URL in one command. Free, no signup, no config — the ngrok alternative for developers.">
-  <meta property="og:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta property="og:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="expose127 — Instant public URLs for your localhost">
@@ -898,7 +898,7 @@ function renderLanding() {
   <meta name="twitter:url" content="https://expose127.hostmargin.com">
   <meta name="twitter:title" content="expose127 — Instant Localhost Tunnels (ngrok Alternative)">
   <meta name="twitter:description" content="Free ngrok alternative. No signup, no config. Just run: npx expose127 8000">
-  <meta name="twitter:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta name="twitter:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
   <meta name="twitter:image:alt" content="expose127 banner">
   <meta name="twitter:creator" content="@hostmargin">
   <meta name="twitter:site" content="@hostmargin">
@@ -915,6 +915,7 @@ function renderLanding() {
     "operatingSystem": "Windows, macOS, Linux",
     "description": "Expose your localhost to the internet instantly via hmrg.xyz. Get a public HTTPS URL for any local port with one command — a free ngrok alternative.",
     "url": "https://expose127.hostmargin.com",
+    "image": "https://expose127.hostmargin.com/social/facebook-post.png",
     "downloadUrl": "https://www.npmjs.com/package/expose127",
     "softwareVersion": "1.0.5",
     "featureList": [
@@ -1344,12 +1345,14 @@ function renderPrivacy() {
   <meta property="og:url" content="https://expose127.hostmargin.com/privacy">
   <meta property="og:title" content="Privacy Policy — expose127">
   <meta property="og:description" content="How expose127 and hostmargin.com collect, use, and protect your information.">
-  <meta property="og:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta property="og:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:site_name" content="expose127">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Privacy Policy — expose127">
   <meta name="twitter:description" content="How expose127 and hostmargin.com collect, use, and protect your information.">
-  <meta name="twitter:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta name="twitter:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
 
   <script type="application/ld+json">
   {
@@ -1444,12 +1447,14 @@ function renderTerms() {
   <meta property="og:url" content="https://expose127.hostmargin.com/terms">
   <meta property="og:title" content="Terms &amp; Conditions — expose127">
   <meta property="og:description" content="The terms that govern your use of expose127 and hostmargin.com.">
-  <meta property="og:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta property="og:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
   <meta property="og:site_name" content="expose127">
-  <meta name="twitter:card" content="summary">
+  <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="Terms &amp; Conditions — expose127">
   <meta name="twitter:description" content="The terms that govern your use of expose127 and hostmargin.com.">
-  <meta name="twitter:image" content="https://expose127.hostmargin.com/logo-expose127.png">
+  <meta name="twitter:image" content="https://expose127.hostmargin.com/social/facebook-post.png">
 
   <script type="application/ld+json">
   {
