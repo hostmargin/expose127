@@ -91,7 +91,7 @@ const SITE_BASE_STYLE = `
   .logo { display: flex; align-items: center; }
   .logo img { display: block; }
 
-  .nav-links { display: flex; gap: 2rem; align-items: center; flex-wrap: wrap; }
+  .nav-links { display: flex; gap: 2rem; align-items: center; }
 
   nav a {
     font-family: var(--font-display);
@@ -113,6 +113,49 @@ const SITE_BASE_STYLE = `
     transition: all 0.2s !important;
   }
   .nav-cta:hover { background: var(--accent) !important; color: #000 !important; box-shadow: 0 0 20px rgba(0,229,255,0.3); }
+
+  .nav-toggle {
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    width: 38px;
+    height: 34px;
+    padding: 0;
+    cursor: pointer;
+  }
+  .nav-toggle span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    margin: 0 auto;
+    background: var(--text);
+    transition: transform 0.2s, opacity 0.2s;
+  }
+  .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  .nav-toggle.open span:nth-child(2) { opacity: 0; }
+  .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+  @media (max-width: 900px) {
+    nav { flex-wrap: wrap; padding: 0.85rem 1.5rem; }
+    .nav-toggle { display: flex; }
+    .nav-links {
+      display: none;
+      flex-direction: column;
+      align-items: stretch;
+      width: 100%;
+      gap: 0;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--border);
+    }
+    .nav-links.open { display: flex; }
+    .nav-links a { padding: 0.7rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .nav-cta { text-align: center; margin-top: 0.5rem; }
+  }
 
   /* ── FOOTER ── */
   footer {
@@ -845,7 +888,10 @@ function siteNav() {
   return `
 <nav>
   <div class="logo"><img src="/logo-expose127.png" alt="expose127 logo" width="150"></div>
-  <div class="nav-links">
+  <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-links">
+    <span></span><span></span><span></span>
+  </button>
+  <div class="nav-links" id="nav-links">
     <a href="/#architecture">Architecture</a>
     <a href="/#how">How it works</a>
     <a href="/#features">Features</a>
@@ -853,7 +899,23 @@ function siteNav() {
     <a href="/dashboard">Dashboard</a>
     <a href="https://npmjs.com/package/expose127" class="nav-cta" target="_blank">Get started →</a>
   </div>
-</nav>`;
+</nav>
+<script>
+  (function () {
+    var toggle = document.getElementById('nav-toggle');
+    var links = document.getElementById('nav-links');
+    if (!toggle || !links) return;
+    function setOpen(open) {
+      links.classList.toggle('open', open);
+      toggle.classList.toggle('open', open);
+      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    toggle.addEventListener('click', function () { setOpen(!links.classList.contains('open')); });
+    links.querySelectorAll('a').forEach(function (a) {
+      a.addEventListener('click', function () { setOpen(false); });
+    });
+  })();
+</script>`;
 }
 
 function siteFooter() {
@@ -1561,7 +1623,7 @@ const SHELL_STYLE = `
 
   .wrap{max-width:1000px;margin:0 auto;padding:3rem 2rem 5rem;position:relative;z-index:1}
   h1{font-family:var(--font-display);font-size:2rem;font-weight:800;letter-spacing:.03em;
-     text-transform:uppercase;margin-bottom:.4rem}
+     text-transform:uppercase;margin-bottom:.4rem;overflow-wrap:break-word}
   .sub{color:var(--muted);margin-bottom:2rem;font-size:.95rem;letter-spacing:.01em}
   .sub a{color:var(--accent);text-decoration:none}
   .sub a:hover{text-decoration:underline}
@@ -1575,7 +1637,8 @@ const SHELL_STYLE = `
   .card h2{font-family:var(--font-display);font-size:.95rem;font-weight:700;letter-spacing:.09em;
            text-transform:uppercase;margin-bottom:1.25rem;color:var(--text)}
 
-  table{width:100%;border-collapse:collapse;font-size:.88rem}
+  .table-scroll{overflow-x:auto}
+  table{width:100%;min-width:480px;border-collapse:collapse;font-size:.88rem}
   th,td{text-align:left;padding:.75rem .8rem;border-bottom:1px solid var(--border)}
   th{color:var(--muted);font-family:var(--font-display);font-weight:700;font-size:.65rem;
      letter-spacing:.1em;text-transform:uppercase}
@@ -1719,14 +1782,18 @@ function renderDashboard({ user, tunnels, tokens, totalRequests }) {
 
     <div class="card">
       <h2>Active tunnels</h2>
+      <div class="table-scroll">
       <table><thead><tr><th>Subdomain</th><th>Connected</th><th></th></tr></thead>
       <tbody>${tunnelRows}</tbody></table>
+      </div>
     </div>
 
     <div class="card">
       <h2>API tokens</h2>
+      <div class="table-scroll">
       <table><thead><tr><th>Token</th><th>Created</th></tr></thead>
       <tbody>${tokenRows}</tbody></table>
+      </div>
       <form method="post" action="/dashboard/token" style="margin-top:1.25rem">
         <button type="submit">Generate new token</button>
       </form>
@@ -1794,8 +1861,10 @@ function renderLogs({ subdomain, rows, tunnelDomain }) {
     </div>
 
     <div class="card">
+      <div class="table-scroll">
       <table><thead><tr><th>Time</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>
       <tbody id="log-rows">${body}</tbody></table>
+      </div>
     </div>
     <script>
       (function () {
