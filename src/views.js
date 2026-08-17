@@ -1674,6 +1674,24 @@ const SHELL_STYLE = `
   .pager{align-items:center;justify-content:center;gap:1.25rem;margin-top:1.25rem}
   .pager button:disabled{opacity:.35;cursor:not-allowed}
   .pager button:disabled:hover{border-color:var(--border);color:var(--text);box-shadow:none}
+
+  .admin-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
+      gap:1rem 1.5rem;margin-bottom:2rem}
+  .admin-live{gap:.6rem;background:var(--card);border:1px solid var(--border);border-radius:8px;
+      padding:.6rem 1rem}
+  .admin-live .sep{color:var(--dim)}
+  .admin-live button{padding:.35rem .8rem;font-size:.65rem}
+
+  .table-toolbar{display:flex;justify-content:flex-end;margin-bottom:1rem}
+  .table-search{background:var(--surface);border:1px solid var(--border);color:var(--text);
+      font-family:var(--font-mono);font-size:.78rem;padding:.5rem .8rem;border-radius:4px;
+      width:100%;max-width:280px}
+  .table-search:focus{outline:none;border-color:var(--accent)}
+  .table-search::placeholder{color:var(--muted)}
+
+  .card h2{display:flex;align-items:center;gap:.6rem}
+  .card h2 .count{font-family:var(--font-mono);color:var(--muted);font-weight:400;
+      text-transform:none;letter-spacing:0;font-size:.85rem}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .live{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
         font-size:.78rem;color:var(--muted)}
@@ -2000,8 +2018,15 @@ function pagerControls(id) {
     </div>`;
 }
 
-function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, requests, tunnelDomain, pageSize }) {
-  const tunnelRows = activeTunnels.length
+function searchToolbar(id, placeholder) {
+  return `
+    <div class="table-toolbar">
+      <input type="search" class="table-search" id="${id}" placeholder="${placeholder}">
+    </div>`;
+}
+
+function adminTunnelRows(activeTunnels) {
+  return activeTunnels.length
     ? activeTunnels.map(t => `
       <tr class="data-row">
         <td><span class="tunnel-name"><span class="dot"></span><code>${t.subdomain}</code></span></td>
@@ -2010,8 +2035,10 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
         <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
       </tr>`).join('')
     : `<tr><td colspan="4" class="empty">No active tunnels right now.</td></tr>`;
+}
 
-  const pastTunnelRows = pastTunnels.length
+function adminPastTunnelRows(pastTunnels) {
+  return pastTunnels.length
     ? pastTunnels.map(t => `
       <tr class="data-row">
         <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
@@ -2021,8 +2048,10 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
         <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="empty">No past tunnels yet.</td></tr>`;
+}
 
-  const tokenRows = tokens.length
+function adminTokenRows(tokens) {
+  return tokens.length
     ? tokens.map(t => `
       <tr class="data-row">
         <td><code>${maskToken(t.token)}</code></td>
@@ -2032,8 +2061,10 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
         <td>${t.revoked_at ? `<span class="badge b-4xx">revoked</span>` : `<span class="badge b-2xx">active</span>`}</td>
       </tr>`).join('')
     : `<tr><td colspan="5" class="empty">No tokens yet.</td></tr>`;
+}
 
-  const requestRows = requests.length
+function adminRequestRows(requests) {
+  return requests.length
     ? requests.map(r => `
       <tr class="data-row">
         <td>${new Date(r.ts).toLocaleString()}</td>
@@ -2045,22 +2076,41 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
         <td>${r.duration_ms}ms</td>
       </tr>`).join('')
     : `<tr><td colspan="7" class="empty">No requests logged yet.</td></tr>`;
+}
+
+function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, requests, tunnelDomain, pageSize }) {
+  const tunnelRows = adminTunnelRows(activeTunnels);
+  const pastTunnelRows = adminPastTunnelRows(pastTunnels);
+  const tokenRows = adminTokenRows(tokens);
+  const requestRows = adminRequestRows(requests);
 
   return shell('Admin panel', `
-    <h1>Admin panel</h1>
-    <p class="sub">Every client's tunnels, tokens, and requests — most recent ${pageSize} per list.</p>
+    <div class="admin-header">
+      <div>
+        <h1>Admin panel</h1>
+        <p class="sub" style="margin:0">Every client's tunnels, tokens, and requests — most recent ${pageSize} per list.</p>
+      </div>
+      <div class="live admin-live">
+        <span class="dot" id="admin-live-dot"></span>
+        <span id="admin-live-status">Live</span>
+        <span class="sep">·</span>
+        <span id="admin-last-updated">updated just now</span>
+        <button type="button" class="btn-ghost" id="admin-refresh-now">Refresh now</button>
+      </div>
+    </div>
 
     <div class="stat-row">
-      <div class="stat"><div class="n">${stats.active_tunnels}</div><div class="l">Active tunnels</div></div>
-      <div class="stat"><div class="n">${stats.total_tunnels}</div><div class="l">Tunnels ever</div></div>
-      <div class="stat"><div class="n">${stats.active_tokens}</div><div class="l">Active tokens</div></div>
-      <div class="stat"><div class="n">${stats.total_tokens}</div><div class="l">Tokens ever</div></div>
-      <div class="stat"><div class="n">${stats.total_requests.toLocaleString()}</div><div class="l">Total requests</div></div>
-      <div class="stat"><div class="n">${stats.distinct_clients}</div><div class="l">Distinct clients</div></div>
+      <div class="stat"><div class="n" id="stat-active_tunnels">${stats.active_tunnels}</div><div class="l">Active tunnels</div></div>
+      <div class="stat"><div class="n" id="stat-total_tunnels">${stats.total_tunnels}</div><div class="l">Tunnels ever</div></div>
+      <div class="stat"><div class="n" id="stat-active_tokens">${stats.active_tokens}</div><div class="l">Active tokens</div></div>
+      <div class="stat"><div class="n" id="stat-total_tokens">${stats.total_tokens}</div><div class="l">Tokens ever</div></div>
+      <div class="stat"><div class="n" id="stat-total_requests">${stats.total_requests.toLocaleString()}</div><div class="l">Total requests</div></div>
+      <div class="stat"><div class="n" id="stat-distinct_clients">${stats.distinct_clients}</div><div class="l">Distinct clients</div></div>
     </div>
 
     <div class="card">
       <h2>Active tunnels (all clients)</h2>
+      ${searchToolbar('admin-tunnels-search', 'Search subdomain, client…')}
       <div class="table-scroll">
       <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th></th></tr></thead>
       <tbody id="admin-tunnels-rows">${tunnelRows}</tbody></table>
@@ -2070,6 +2120,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
     <div class="card">
       <h2>Tunnel history (all clients)</h2>
+      ${searchToolbar('admin-history-search', 'Search subdomain, client…')}
       <div class="table-scroll">
       <table><thead><tr><th>Subdomain</th><th>Client</th><th>Connected</th><th>Disconnected</th><th></th></tr></thead>
       <tbody id="admin-history-rows">${pastTunnelRows}</tbody></table>
@@ -2079,6 +2130,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
     <div class="card">
       <h2>API tokens (all clients)</h2>
+      ${searchToolbar('admin-tokens-search', 'Search token, client, email…')}
       <div class="table-scroll">
       <table><thead><tr><th>Token</th><th>Client</th><th>Email</th><th>Created</th><th>Status</th></tr></thead>
       <tbody id="admin-tokens-rows">${tokenRows}</tbody></table>
@@ -2088,6 +2140,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
 
     <div class="card">
       <h2>Recent requests (all clients, all tunnels)</h2>
+      ${searchToolbar('admin-requests-search', 'Search subdomain, path, client…')}
       <div class="table-scroll">
       <table><thead><tr><th>Time</th><th>Client</th><th>Subdomain</th><th>Method</th><th>Path</th><th>Status</th><th>Duration</th></tr></thead>
       <tbody id="admin-requests-rows">${requestRows}</tbody></table>
@@ -2096,37 +2149,120 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
     </div>
 
     <script>
-      function paginateTable(tbodyId, pagerId, pageSize) {
-        var tbody = document.getElementById(tbodyId);
-        var pager = document.getElementById(pagerId);
-        var rows = Array.prototype.slice.call(tbody.querySelectorAll('tr.data-row'));
-        if (rows.length <= pageSize) return;
+      (function () {
+        var pageSize = 10;
 
-        var page = 0;
-        var totalPages = Math.ceil(rows.length / pageSize);
-        var prevBtn = pager.querySelector('.prev');
-        var nextBtn = pager.querySelector('.next');
-        var info = pager.querySelector('.page-info');
+        function setupTable(tbodyId, pagerId, searchId) {
+          var tbody = document.getElementById(tbodyId);
+          var pager = document.getElementById(pagerId);
+          var searchInput = document.getElementById(searchId);
+          var page = 0;
 
-        function render() {
-          rows.forEach(function (row, i) {
-            row.style.display = (i >= page * pageSize && i < (page + 1) * pageSize) ? '' : 'none';
+          function render() {
+            var all = Array.prototype.slice.call(tbody.querySelectorAll('tr.data-row'));
+            var visible = all.filter(function (row) { return row.dataset.searchHidden !== '1'; });
+            var totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+            if (page >= totalPages) page = totalPages - 1;
+            if (page < 0) page = 0;
+
+            all.forEach(function (row) {
+              if (row.dataset.searchHidden === '1') { row.style.display = 'none'; return; }
+              var idx = visible.indexOf(row);
+              row.style.display = (idx >= page * pageSize && idx < (page + 1) * pageSize) ? '' : 'none';
+            });
+
+            if (visible.length <= pageSize) {
+              pager.style.display = 'none';
+            } else {
+              pager.style.display = 'flex';
+              pager.querySelector('.page-info').textContent =
+                'Page ' + (page + 1) + ' of ' + totalPages + ' (' + visible.length + ' rows)';
+              pager.querySelector('.prev').disabled = page === 0;
+              pager.querySelector('.next').disabled = page === totalPages - 1;
+            }
+          }
+
+          pager.querySelector('.prev').addEventListener('click', function () { page--; render(); });
+          pager.querySelector('.next').addEventListener('click', function () { page++; render(); });
+
+          searchInput.addEventListener('input', function () {
+            var q = searchInput.value.trim().toLowerCase();
+            tbody.querySelectorAll('tr.data-row').forEach(function (row) {
+              row.dataset.searchHidden = (q && row.textContent.toLowerCase().indexOf(q) === -1) ? '1' : '';
+            });
+            page = 0;
+            render();
           });
-          info.textContent = 'Page ' + (page + 1) + ' of ' + totalPages + ' (' + rows.length + ' rows)';
-          prevBtn.disabled = page === 0;
-          nextBtn.disabled = page === totalPages - 1;
+
+          render();
+          return { render: render, reapplySearch: function () { searchInput.dispatchEvent(new Event('input')); } };
         }
 
-        prevBtn.addEventListener('click', function () { if (page > 0) { page--; render(); } });
-        nextBtn.addEventListener('click', function () { if (page < totalPages - 1) { page++; render(); } });
-        pager.style.display = 'flex';
-        render();
-      }
+        var tables = {
+          tunnels:  setupTable('admin-tunnels-rows',  'admin-tunnels-pager',  'admin-tunnels-search'),
+          history:  setupTable('admin-history-rows',  'admin-history-pager',  'admin-history-search'),
+          tokens:   setupTable('admin-tokens-rows',   'admin-tokens-pager',   'admin-tokens-search'),
+          requests: setupTable('admin-requests-rows', 'admin-requests-pager', 'admin-requests-search'),
+        };
 
-      paginateTable('admin-tunnels-rows', 'admin-tunnels-pager', 10);
-      paginateTable('admin-history-rows', 'admin-history-pager', 10);
-      paginateTable('admin-tokens-rows', 'admin-tokens-pager', 10);
-      paginateTable('admin-requests-rows', 'admin-requests-pager', 10);
+        // ── Live auto-refresh ──────────────────────────────────────────────────
+        var liveDot    = document.getElementById('admin-live-dot');
+        var liveStatus = document.getElementById('admin-live-status');
+        var lastUpdated = document.getElementById('admin-last-updated');
+        var refreshBtn  = document.getElementById('admin-refresh-now');
+        var statKeys = ['active_tunnels', 'total_tunnels', 'active_tokens', 'total_tokens', 'total_requests', 'distinct_clients'];
+        var rowTables = [
+          ['admin-tunnels-rows', tables.tunnels],
+          ['admin-history-rows', tables.history],
+          ['admin-tokens-rows', tables.tokens],
+          ['admin-requests-rows', tables.requests],
+        ];
+        var timer;
+
+        async function refresh() {
+          try {
+            var res = await fetch(location.pathname, { headers: { 'X-Requested-With': 'fetch' } });
+            if (!res.ok || res.redirected) throw new Error('session expired');
+            // doc is a separate Document (from DOMParser) — only read strings
+            // (innerHTML/textContent) from it; its nodes can't be moved into
+            // the live document without explicit adoption.
+            var doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+
+            statKeys.forEach(function (key) {
+              var freshEl = doc.getElementById('stat-' + key);
+              var liveEl = document.getElementById('stat-' + key);
+              if (freshEl && liveEl) liveEl.textContent = freshEl.textContent;
+            });
+
+            rowTables.forEach(function (pair) {
+              var fresh = doc.getElementById(pair[0]);
+              if (!fresh) return;
+              document.getElementById(pair[0]).innerHTML = fresh.innerHTML;
+              pair[1].reapplySearch();
+            });
+
+            liveStatus.textContent = 'Live';
+            liveDot.classList.remove('err');
+            lastUpdated.textContent = 'updated ' + new Date().toLocaleTimeString();
+          } catch (err) {
+            liveStatus.textContent = 'Reconnecting…';
+            liveDot.classList.add('err');
+          }
+        }
+
+        function schedule() {
+          clearInterval(timer);
+          timer = setInterval(function () {
+            if (document.visibilityState === 'visible') refresh();
+          }, 8000);
+        }
+
+        refreshBtn.addEventListener('click', refresh);
+        document.addEventListener('visibilitychange', function () {
+          if (document.visibilityState === 'visible') refresh();
+        });
+        schedule();
+      })();
     </script>
   `, adminNav(true));
 }
