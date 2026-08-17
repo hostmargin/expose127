@@ -1692,6 +1692,32 @@ const SHELL_STYLE = `
   .card h2{display:flex;align-items:center;gap:.6rem}
   .card h2 .count{font-family:var(--font-mono);color:var(--muted);font-weight:400;
       text-transform:none;letter-spacing:0;font-size:.85rem}
+
+  .wrap.wide{max-width:1500px}
+
+  .admin-charts{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
+  .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));gap:1.5rem}
+  .admin-grid .card{margin-bottom:0}
+  @media (max-width:980px){
+    .admin-charts{grid-template-columns:1fr}
+  }
+
+  .chart-svg{width:100%;height:auto;display:block}
+  .chart-axis{stroke:var(--border);stroke-width:1}
+  .chart-line{stroke:#3987e5;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
+  .chart-area{fill:#3987e5;fill-opacity:.12;stroke:none}
+  .chart-dot{fill:#3987e5;stroke:var(--card);stroke-width:2}
+  .chart-hit{cursor:default}
+  .chart-caption{margin-top:.75rem;text-align:center;font-size:.72rem}
+
+  .bar-chart{display:flex;flex-direction:column;gap:.85rem}
+  .bar-row{display:grid;grid-template-columns:76px 1fr 2.75rem;align-items:center;gap:.75rem}
+  .bar-label{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);text-align:right;
+      white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .bar-track{background:var(--surface);border:1px solid var(--border);border-radius:4px;
+      height:20px;position:relative;overflow:hidden}
+  .bar-fill{height:100%;border-radius:3px;transition:width .3s ease;min-width:3px}
+  .bar-value{font-family:var(--font-mono);font-size:.75rem;color:var(--text);text-align:right}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
   .live{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
         font-size:.78rem;color:var(--muted)}
@@ -1726,7 +1752,7 @@ const SHELL_STYLE = `
   footer a:hover{color:var(--accent)}
 `;
 
-function shell(title, body, navOverride) {
+function shell(title, body, navOverride, wrapClass) {
   const nav = navOverride || `
     <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127"></a>
     <div class="nav-links">
@@ -1749,7 +1775,7 @@ function shell(title, body, navOverride) {
 <body>
   <div class="bg-grid"></div>
   <nav>${nav}</nav>
-  <div class="wrap">${body}</div>
+  <div class="wrap${wrapClass ? ' ' + wrapClass : ''}">${body}</div>
   <footer>
     expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
     <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
@@ -2078,11 +2104,136 @@ function adminRequestRows(requests) {
     : `<tr><td colspan="7" class="empty">No requests logged yet.</td></tr>`;
 }
 
+// Colors below are a validated categorical sequence (dataviz skill's default
+// palette, dark-mode steps 1-5 in original order) — chosen because the site's
+// own brand hues (cyan/violet/amber/red) fail the adjacent-pair CVD check at
+// this lightness. Fixed order, never reassigned by frequency, so a method's
+// color stays stable across live refreshes.
+const METHOD_CHART_ORDER = [
+  { key: 'GET',    color: '#3987e5' },
+  { key: 'POST',   color: '#d95926' },
+  { key: 'PUT',    color: '#199e70' },
+  { key: 'PATCH',  color: '#c98500' },
+  { key: 'DELETE', color: '#d55181' },
+];
+const METHOD_OTHER_COLOR = '#5a6e82';
+
+// Status colors are the dataviz skill's fixed status scale (good/warning/
+// critical) — reserved meaning, contrast-checked against this app's actual
+// card surface (#0f1520) rather than eyeballed.
+const STATUS_CHART_ORDER = [
+  { key: '2xx', color: '#0ca30c' },
+  { key: '3xx', color: '#5a6e82' },
+  { key: '4xx', color: '#fab219' },
+  { key: '5xx', color: '#d03b3b' },
+];
+
+function buildBarChartHtml(entries, emptyText) {
+  const total = entries.reduce((sum, e) => sum + e.count, 0);
+  if (total === 0) {
+    return `<div class="empty" style="padding:2rem 0">${emptyText}</div>`;
+  }
+  const maxCount = Math.max(...entries.map(e => e.count), 1);
+  const rows = entries
+    .filter(e => e.count > 0)
+    .map(e => {
+      const pct = Math.max((e.count / maxCount) * 100, 2);
+      return `
+      <div class="bar-row" title="${e.label}: ${e.count} request${e.count === 1 ? '' : 's'}">
+        <div class="bar-label">${e.label}</div>
+        <div class="bar-track"><div class="bar-fill" style="width:${pct.toFixed(1)}%;background:${e.color}"></div></div>
+        <div class="bar-value">${e.count}</div>
+      </div>`;
+    }).join('');
+  return `<div class="bar-chart">${rows}</div>`;
+}
+
+function buildMethodBarChart(requests) {
+  const counts = {};
+  requests.forEach(r => { counts[r.method] = (counts[r.method] || 0) + 1; });
+
+  const knownKeys = new Set(METHOD_CHART_ORDER.map(m => m.key));
+  const entries = METHOD_CHART_ORDER.map(m => ({ label: m.key, count: counts[m.key] || 0, color: m.color }));
+  const otherCount = Object.entries(counts).reduce((sum, [k, v]) => (knownKeys.has(k) ? sum : sum + v), 0);
+  if (otherCount > 0) entries.push({ label: 'Other', count: otherCount, color: METHOD_OTHER_COLOR });
+
+  return buildBarChartHtml(entries, 'No requests logged yet.');
+}
+
+function buildStatusBarChart(requests) {
+  const counts = { '2xx': 0, '3xx': 0, '4xx': 0, '5xx': 0 };
+  requests.forEach(r => {
+    const bucket = statusBucket(r.status_code);
+    if (counts[bucket] !== undefined) counts[bucket]++;
+  });
+  const entries = STATUS_CHART_ORDER.map(s => ({ label: s.key, count: counts[s.key], color: s.color }));
+  return buildBarChartHtml(entries, 'No requests logged yet.');
+}
+
+function buildTimeSeriesChart(requests) {
+  if (!requests.length) {
+    return `<div class="empty" style="padding:2.5rem 0">No request activity yet.</div>`;
+  }
+
+  const W = 600, H = 200, padL = 8, padR = 8, padT = 10, padB = 10;
+  const plotW = W - padL - padR, plotH = H - padT - padB;
+  const BUCKETS = 24;
+
+  const timestamps = requests.map(r => r.ts);
+  const minTs = Math.min(...timestamps);
+  const maxTs = Math.max(...timestamps);
+  const span = Math.max(maxTs - minTs, 1);
+
+  const counts = new Array(BUCKETS).fill(0);
+  requests.forEach(r => {
+    let idx = Math.floor(((r.ts - minTs) / span) * BUCKETS);
+    if (idx >= BUCKETS) idx = BUCKETS - 1;
+    if (idx < 0) idx = 0;
+    counts[idx]++;
+  });
+
+  const maxCount = Math.max(...counts, 1);
+  const bucketW = plotW / BUCKETS;
+  const points = counts.map((c, i) => {
+    const x = padL + i * bucketW + bucketW / 2;
+    const y = padT + plotH - (c / maxCount) * plotH;
+    return [x, y];
+  });
+
+  const linePath = points.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const baseline = (padT + plotH).toFixed(1);
+  const areaPath = `${linePath} L${points[points.length - 1][0].toFixed(1)},${baseline} L${points[0][0].toFixed(1)},${baseline} Z`;
+
+  const bucketSpan = span / BUCKETS;
+  const hoverRects = counts.map((c, i) => {
+    const x = padL + i * bucketW;
+    const bucketStart = minTs + bucketSpan * i;
+    const label = new Date(bucketStart).toLocaleTimeString();
+    return `<rect x="${x.toFixed(1)}" y="${padT}" width="${bucketW.toFixed(1)}" height="${plotH}" class="chart-hit" fill="transparent"><title>${label} — ${c} request${c === 1 ? '' : 's'}</title></rect>`;
+  }).join('');
+
+  const dots = points.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" class="chart-dot"/>`).join('');
+
+  return `
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img" aria-label="Requests over time">
+      <line x1="${padL}" y1="${baseline}" x2="${(padL + plotW).toFixed(1)}" y2="${baseline}" class="chart-axis"/>
+      <path d="${areaPath}" class="chart-area"/>
+      <path d="${linePath}" fill="none" class="chart-line"/>
+      ${dots}
+      ${hoverRects}
+    </svg>
+    <div class="chart-caption sub">Last ${requests.length} requests · ${new Date(minTs).toLocaleTimeString()} – ${new Date(maxTs).toLocaleTimeString()}</div>
+  `;
+}
+
 function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, requests, tunnelDomain, pageSize }) {
   const tunnelRows = adminTunnelRows(activeTunnels);
   const pastTunnelRows = adminPastTunnelRows(pastTunnels);
   const tokenRows = adminTokenRows(tokens);
   const requestRows = adminRequestRows(requests);
+  const timeSeriesChart = buildTimeSeriesChart(requests);
+  const statusChart = buildStatusBarChart(requests);
+  const methodChart = buildMethodBarChart(requests);
 
   return shell('Admin panel', `
     <div class="admin-header">
@@ -2108,6 +2259,22 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
       <div class="stat"><div class="n" id="stat-distinct_clients">${stats.distinct_clients}</div><div class="l">Distinct clients</div></div>
     </div>
 
+    <div class="admin-charts">
+      <div class="card">
+        <h2>Requests over time</h2>
+        <div id="chart-timeseries">${timeSeriesChart}</div>
+      </div>
+      <div class="card">
+        <h2>Status codes</h2>
+        <div id="chart-status">${statusChart}</div>
+      </div>
+      <div class="card">
+        <h2>Methods</h2>
+        <div id="chart-method">${methodChart}</div>
+      </div>
+    </div>
+
+    <div class="admin-grid">
     <div class="card">
       <h2>Active tunnels (all clients)</h2>
       ${searchToolbar('admin-tunnels-search', 'Search subdomain, client…')}
@@ -2146,6 +2313,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
       <tbody id="admin-requests-rows">${requestRows}</tbody></table>
       </div>
       ${pagerControls('admin-requests-pager')}
+    </div>
     </div>
 
     <script>
@@ -2217,6 +2385,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
           ['admin-tokens-rows', tables.tokens],
           ['admin-requests-rows', tables.requests],
         ];
+        var chartIds = ['chart-timeseries', 'chart-status', 'chart-method'];
         var timer;
 
         async function refresh() {
@@ -2239,6 +2408,11 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
               if (!fresh) return;
               document.getElementById(pair[0]).innerHTML = fresh.innerHTML;
               pair[1].reapplySearch();
+            });
+
+            chartIds.forEach(function (id) {
+              var fresh = doc.getElementById(id);
+              if (fresh) document.getElementById(id).innerHTML = fresh.innerHTML;
             });
 
             liveStatus.textContent = 'Live';
@@ -2264,7 +2438,7 @@ function renderAdminDashboard({ stats, activeTunnels, pastTunnels, tokens, reque
         schedule();
       })();
     </script>
-  `, adminNav(true));
+  `, adminNav(true), 'wide');
 }
 
 module.exports = {
