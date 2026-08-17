@@ -1800,6 +1800,20 @@ function statusBucket(code) {
   return code >= 500 ? '5xx' : code >= 400 ? '4xx' : code >= 300 ? '3xx' : code >= 200 ? '2xx' : 'other';
 }
 
+// request paths, emails, and (defense-in-depth) subdomains all flow into
+// these templates from data an attacker can influence — a request path is
+// literally whatever an anonymous visitor sends to a public tunnel URL, and
+// it gets stored and replayed here later. Escape before every interpolation
+// below that isn't a value we generated ourselves (tokens, counts, dates).
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function statusBadge(code) {
   return `<span class="badge b-${statusBucket(code)}">${code}</span>`;
 }
@@ -1824,7 +1838,7 @@ function renderDashboard({ user, tunnels, pastTunnels, tokens, totalRequests }) 
   const tunnelRows = tunnels.length
     ? tunnels.map(t => `
       <tr>
-        <td><span class="tunnel-name"><span class="dot"></span><code>${t.subdomain}</code></span></td>
+        <td><span class="tunnel-name"><span class="dot"></span><code>${escapeHtml(t.subdomain)}</code></span></td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td><a class="btn-ghost" href="/dashboard/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
       </tr>`).join('')
@@ -1833,7 +1847,7 @@ function renderDashboard({ user, tunnels, pastTunnels, tokens, totalRequests }) 
   const pastTunnelRows = pastTunnels.length
     ? pastTunnels.map(t => `
       <tr>
-        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
+        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${escapeHtml(t.subdomain)}</code></span></td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td>${new Date(t.closed_at).toLocaleString()}</td>
         <td><a class="btn-ghost" href="/dashboard/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
@@ -1854,7 +1868,7 @@ function renderDashboard({ user, tunnels, pastTunnels, tokens, totalRequests }) 
     : `<tr><td colspan="3" class="empty">No tokens yet — generate one below to link the CLI to your account.</td></tr>`;
 
   return shell('Dashboard', `
-    <h1>Hi ${user.email || 'there'}</h1>
+    <h1>Hi ${escapeHtml(user.email || 'there')}</h1>
     <p class="sub">Your expose127 tunnels, tokens and request history</p>
 
     <div class="stat-row">
@@ -1913,7 +1927,7 @@ function renderLogs({ subdomain, rows, tunnelDomain, backHref, backLabel }) {
       <tr data-method="${r.method}" data-status="${bucket}">
         <td>${new Date(r.ts).toLocaleTimeString()}</td>
         <td>${methodLabel(r.method)}</td>
-        <td><a class="log-link" href="${url}" target="_blank" rel="noopener"><code>${r.path}</code></a></td>
+        <td><a class="log-link" href="${escapeHtml(url)}" target="_blank" rel="noopener"><code>${escapeHtml(r.path)}</code></a></td>
         <td>${statusBadge(r.status_code)}</td>
         <td>${r.duration_ms}ms</td>
       </tr>`;
@@ -2055,7 +2069,7 @@ function adminTunnelRows(activeTunnels) {
   return activeTunnels.length
     ? activeTunnels.map(t => `
       <tr class="data-row">
-        <td><span class="tunnel-name"><span class="dot"></span><code>${t.subdomain}</code></span></td>
+        <td><span class="tunnel-name"><span class="dot"></span><code>${escapeHtml(t.subdomain)}</code></span></td>
         <td>${clientLabel(t.client_id)}</td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td><a class="btn-ghost" href="/admin/tunnels/${encodeURIComponent(t.subdomain)}/logs">View requests →</a></td>
@@ -2067,7 +2081,7 @@ function adminPastTunnelRows(pastTunnels) {
   return pastTunnels.length
     ? pastTunnels.map(t => `
       <tr class="data-row">
-        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${t.subdomain}</code></span></td>
+        <td><span class="tunnel-name"><span class="dot inactive"></span><code>${escapeHtml(t.subdomain)}</code></span></td>
         <td>${clientLabel(t.client_id)}</td>
         <td>${new Date(t.connected_at).toLocaleString()}</td>
         <td>${new Date(t.closed_at).toLocaleString()}</td>
@@ -2082,7 +2096,7 @@ function adminTokenRows(tokens) {
       <tr class="data-row">
         <td><code>${maskToken(t.token)}</code></td>
         <td>${t.client_id}</td>
-        <td>${t.email || ''}</td>
+        <td>${escapeHtml(t.email || '')}</td>
         <td>${new Date(t.created_at).toLocaleString()}</td>
         <td>${t.revoked_at ? `<span class="badge b-4xx">revoked</span>` : `<span class="badge b-2xx">active</span>`}</td>
       </tr>`).join('')
@@ -2095,9 +2109,9 @@ function adminRequestRows(requests) {
       <tr class="data-row">
         <td>${new Date(r.ts).toLocaleString()}</td>
         <td>${clientLabel(r.client_id)}</td>
-        <td><code>${r.subdomain}</code></td>
+        <td><code>${escapeHtml(r.subdomain)}</code></td>
         <td>${methodLabel(r.method)}</td>
-        <td><code>${r.path}</code></td>
+        <td><code>${escapeHtml(r.path)}</code></td>
         <td>${statusBadge(r.status_code)}</td>
         <td>${r.duration_ms}ms</td>
       </tr>`).join('')
