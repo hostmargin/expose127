@@ -4,890 +4,225 @@
 // used to be static files; they're now rendered here so all three pages (plus the
 // dashboard) share one nav/footer instead of three copy-pasted ones.
 
+// ── Design tokens shared by every page (minimalist, light/dark aware) ─────────
+const FONT_LINK = `<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">`;
+
+const TOKENS = `
+  :root{
+    --bg:#fafafa; --fg:#0a0a0a; --text:#0a0a0a; --muted:#737373; --faint:#a3a3a3; --dim:#d4d4d4;
+    --line:#e5e5e5; --border:#e5e5e5; --card:#ffffff; --surface:#f5f5f5;
+    --term:#0a0a0a; --term-line:#1f1f1f;
+    --accent:#16a34a; --accent2:#2563eb; --green:#16a34a; --red:#dc2626; --amber:#d97706;
+    --font-display:Inter,system-ui,-apple-system,sans-serif;
+    --font-body:Inter,system-ui,-apple-system,sans-serif;
+    --font-mono:'JetBrains Mono',ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0a0a0a; --fg:#fafafa; --text:#fafafa; --muted:#a3a3a3; --faint:#525252; --dim:#3f3f3f;
+      --line:#1f1f1f; --border:#1f1f1f; --card:#111111; --surface:#161616;
+      --term:#111111; --term-line:#1f1f1f;
+      --accent:#4ade80; --accent2:#60a5fa; --green:#4ade80; --red:#f87171; --amber:#fbbf24;
+    }
+  }
+`;
+
+// Wordmark used in every nav — replaces the old neon PNG logo in the header
+// (the PNG is still used for apple-touch-icon / social previews).
+function logoMark(href, extra) {
+  return `<a href="${href}" class="logo"><i><svg viewBox="0 0 16 16" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5l3 3-3 3M9 11h3"/></svg></i><span>expose127</span>${extra || ''}</a>`;
+}
+
 const SITE_BASE_STYLE = `
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
-  :root {
-    --bg:       #06080d;
-    --surface:  #0b0f18;
-    --card:     #0f1520;
-    --border:   #1a2535;
-    --accent:   #00e5ff;
-    --accent2:  #8b5cf6;
-    --green:    #00ffa3;
-    --orange:   #ff6b35;
-    --text:     #dde6f0;
-    --muted:    #5a6e82;
-    --dim:      #2d3f52;
-    --font-display: 'Oxanium', sans-serif;
-    --font-body:    'Rajdhani', sans-serif;
-    --font-mono:    'JetBrains Mono', monospace;
-  }
-
-  html { scroll-behavior: smooth; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font-body);
-    font-size: 16px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
-
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
-    pointer-events: none;
-    z-index: 999;
-  }
-
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    background-image:
-      linear-gradient(rgba(0,229,255,0.025) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(0,229,255,0.025) 1px, transparent 1px);
-    background-size: 48px 48px;
-    pointer-events: none;
-    z-index: 0;
-  }
-
-  .orb {
-    position: fixed;
-    border-radius: 50%;
-    filter: blur(100px);
-    pointer-events: none;
-    z-index: 0;
-    animation: drift 14s ease-in-out infinite;
-  }
-  .orb1 { width: 700px; height: 700px; background: rgba(0,229,255,0.05); top: -300px; left: -200px; }
-  .orb2 { width: 600px; height: 600px; background: rgba(139,92,246,0.06); bottom: -200px; right: -100px; animation-delay: -7s; }
-  .orb3 { width: 300px; height: 300px; background: rgba(255,107,53,0.04); top: 40%; left: 60%; animation-delay: -3s; }
-
-  @keyframes drift {
-    0%,100% { transform: translate(0,0) scale(1); }
-    33%  { transform: translate(20px,30px) scale(1.02); }
-    66%  { transform: translate(-15px,10px) scale(0.98); }
-  }
+  ${TOKENS}
+  html { scroll-behavior: smooth; -webkit-font-smoothing: antialiased; }
+  body { background: var(--bg); color: var(--fg); font-family: var(--font-body); line-height: 1.6;
+         min-height: 100vh; overflow-x: hidden; }
+  a { color: inherit; text-decoration: none; }
+  .mono { font-family: var(--font-mono); }
+  .wrap { width: 100%; max-width: 1040px; margin: 0 auto; padding: 0 24px; }
 
   /* ── NAV ── */
-  nav {
-    position: fixed;
-    top: 0; left: 0; right: 0;
-    z-index: 100;
-    padding: 1rem 2.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(6,8,13,0.8);
-    backdrop-filter: blur(24px);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .logo { display: flex; align-items: center; }
-  .logo img { display: block; }
-
-  .nav-links { display: flex; gap: 2rem; align-items: center; }
-
-  nav a {
-    font-family: var(--font-display);
-    color: var(--muted);
-    text-decoration: none;
-    font-size: 0.78rem;
-    font-weight: 600;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    transition: color 0.2s;
-  }
-  nav a:hover { color: var(--accent); }
-
-  .nav-cta {
-    color: var(--accent) !important;
-    border: 1px solid rgba(0,229,255,0.4);
-    padding: 0.45rem 1.2rem;
-    border-radius: 3px;
-    transition: all 0.2s !important;
-  }
-  .nav-cta:hover { background: var(--accent) !important; color: #000 !important; box-shadow: 0 0 20px rgba(0,229,255,0.3); }
-
-  .nav-toggle {
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    gap: 5px;
-    background: none;
-    border: 1px solid var(--border);
-    border-radius: 4px;
-    width: 38px;
-    height: 34px;
-    padding: 0;
-    cursor: pointer;
-  }
-  .nav-toggle span {
-    display: block;
-    width: 18px;
-    height: 2px;
-    margin: 0 auto;
-    background: var(--text);
-    transition: transform 0.2s, opacity 0.2s;
-  }
-  .nav-toggle.open span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  nav { position: sticky; top: 0; z-index: 100; background: color-mix(in srgb, var(--bg) 82%, transparent);
+        backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  .nav-inner { max-width: 1040px; margin: 0 auto; padding: 20px 24px; display: flex; align-items: center;
+               justify-content: space-between; gap: 16px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -.01em; font-size: 15px; }
+  .logo i { width: 22px; height: 22px; border-radius: 6px; background: var(--fg); display: grid; place-items: center; }
+  .logo i svg { width: 14px; height: 14px; stroke: var(--bg); }
+  .nav-links { display: flex; gap: 28px; align-items: center; font-size: 14px; color: var(--muted); }
+  .nav-links a:hover { color: var(--fg); }
+  .nav-cta { color: var(--bg) !important; background: var(--fg); padding: 7px 14px; border-radius: 8px; font-weight: 500; }
+  .nav-cta:hover { opacity: .85; }
+  .nav-toggle { display: none; flex-direction: column; justify-content: center; gap: 4px; background: none;
+                border: 1px solid var(--line); border-radius: 8px; width: 36px; height: 32px; cursor: pointer; }
+  .nav-toggle span { display: block; width: 14px; height: 1.5px; margin: 0 auto; background: var(--fg); transition: transform .2s, opacity .2s; }
+  .nav-toggle.open span:nth-child(1) { transform: translateY(5.5px) rotate(45deg); }
   .nav-toggle.open span:nth-child(2) { opacity: 0; }
-  .nav-toggle.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
-
-  @media (max-width: 900px) {
-    nav { flex-wrap: wrap; padding: 0.85rem 1.5rem; }
+  .nav-toggle.open span:nth-child(3) { transform: translateY(-5.5px) rotate(-45deg); }
+  @media (max-width: 860px) {
+    .nav-inner { flex-wrap: wrap; }
     .nav-toggle { display: flex; }
-    .nav-links {
-      display: none;
-      flex-direction: column;
-      align-items: stretch;
-      width: 100%;
-      gap: 0;
-      margin-top: 1rem;
-      padding-top: 1rem;
-      border-top: 1px solid var(--border);
-    }
+    .nav-links { display: none; flex-direction: column; align-items: stretch; width: 100%; gap: 0; }
     .nav-links.open { display: flex; }
-    .nav-links a { padding: 0.7rem 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .nav-cta { text-align: center; margin-top: 0.5rem; }
+    .nav-links a { padding: 12px 0; border-top: 1px solid var(--line); }
+    .nav-cta { text-align: center; margin-top: 8px; padding: 10px 14px; }
   }
 
   /* ── FOOTER ── */
-  footer {
-    position: relative;
-    z-index: 1;
-    border-top: 1px solid var(--border);
-    padding: 2rem;
-    text-align: center;
-    color: var(--dim);
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    letter-spacing: 0.06em;
-  }
-  footer a { color: var(--muted); text-decoration: none; transition: color 0.2s; }
-  footer a:hover { color: var(--accent); }
+  footer { border-top: 1px solid var(--line); margin-top: 40px; }
+  .footer-inner { max-width: 1040px; margin: 0 auto; padding: 28px 24px; display: flex; justify-content: space-between;
+                  gap: 12px 24px; flex-wrap: wrap; font-size: 13px; color: var(--faint); }
+  .footer-inner a:hover { color: var(--fg); }
+  .footer-links { display: flex; gap: 20px; flex-wrap: wrap; }
 
   /* ── REVEAL ── */
-  .reveal {
-    opacity: 0;
-    transform: translateY(20px);
-    transition: opacity 0.6s ease, transform 0.6s ease;
-  }
-  .reveal.visible { opacity: 1; transform: translateY(0); }
+  .reveal { opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease; }
+  .reveal.visible { opacity: 1; transform: none; }
+  @media (prefers-reduced-motion: reduce) { *{ animation: none !important; transition: none !important; } .reveal{ opacity:1; transform:none; } }
 `;
 
 const LANDING_STYLE = `
   /* ── HERO ── */
-  .hero {
-    position: relative;
-    z-index: 1;
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 6.5rem 2rem 2.5rem;
-  }
-
-  .hero-inner {
-    width: 100%;
-    max-width: 1220px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 3.5rem;
-  }
-
-  .hero-content {
-    flex: 1 1 480px;
-    max-width: 560px;
-    text-align: left;
-  }
-
-  @media (max-width: 980px) {
-    .hero-inner { flex-direction: column; text-align: center; }
-    .hero-content { max-width: 620px; text-align: center; }
-    .hero-content .hero-cta { justify-content: center; }
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.6rem;
-    background: rgba(0,229,255,0.06);
-    border: 1px solid rgba(0,229,255,0.15);
-    color: var(--accent);
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    padding: 0.45rem 1.1rem;
-    border-radius: 3px;
-    margin-bottom: 2.5rem;
-    letter-spacing: 0.08em;
-    animation: fadeUp 0.5s ease both;
-  }
-
-  .badge-dot {
-    width: 6px; height: 6px;
-    background: var(--green);
-    border-radius: 50%;
-    box-shadow: 0 0 8px var(--green);
-    animation: pulse 2s ease-in-out infinite;
-  }
-
-  @keyframes pulse {
-    0%,100% { opacity:1; box-shadow: 0 0 8px var(--green); }
-    50%      { opacity:.5; box-shadow: 0 0 2px var(--green); }
-  }
-
-  h1 {
-    font-family: var(--font-display);
-    font-size: clamp(2.6rem, 4.6vw, 4.6rem);
-    font-weight: 800;
-    line-height: 0.98;
-    letter-spacing: 0.03em;
-    text-transform: uppercase;
-    margin-bottom: 1.6rem;
-    animation: fadeUp 0.5s 0.1s ease both;
-  }
-
-  h1 .line1 { display: block; color: var(--text); }
-  h1 .line2 {
-    display: block;
-    background: linear-gradient(120deg, var(--accent) 0%, var(--accent2) 50%, var(--orange) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-    filter: drop-shadow(0 0 30px rgba(0,229,255,0.25));
-  }
-
-  .subtitle {
-    font-family: var(--font-body);
-    font-size: clamp(1rem, 1.6vw, 1.2rem);
-    font-weight: 400;
-    color: var(--muted);
-    max-width: 480px;
-    line-height: 1.65;
-    margin-bottom: 2.5rem;
-    letter-spacing: 0.02em;
-    animation: fadeUp 0.5s 0.2s ease both;
-  }
-
-  .hero-cta {
-    display: flex;
-    gap: 1rem;
-    justify-content: flex-start;
-    flex-wrap: wrap;
-    animation: fadeUp 0.5s 0.3s ease both;
-  }
-
-  .btn-primary {
-    font-family: var(--font-display);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 0.9rem 2.2rem;
-    border-radius: 3px;
-    text-decoration: none;
-    border: none;
-    cursor: pointer;
-    background: var(--accent);
-    color: #000;
-    transition: all 0.2s;
-    position: relative;
-    overflow: hidden;
-  }
-  .btn-primary::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(120deg, transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%);
-    transform: translateX(-100%);
-    transition: transform 0.5s;
-  }
-  .btn-primary:hover::after { transform: translateX(100%); }
-  .btn-primary:hover { box-shadow: 0 0 30px rgba(0,229,255,0.4); transform: translateY(-2px); }
-
-  .btn-secondary {
-    font-family: var(--font-display);
-    font-size: 0.82rem;
-    font-weight: 600;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    padding: 0.9rem 2.2rem;
-    border-radius: 3px;
-    text-decoration: none;
-    background: transparent;
-    color: var(--text);
-    border: 1px solid var(--border);
-    transition: all 0.2s;
-  }
-  .btn-secondary:hover { border-color: var(--accent2); color: var(--accent2); transform: translateY(-2px); }
-
-  @keyframes fadeUp {
-    from { opacity: 0; transform: translateY(24px); }
-    to   { opacity: 1; transform: translateY(0); }
-  }
+  .hero { padding: 96px 0 40px; text-align: center; }
+  .pill { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted);
+          border: 1px solid var(--line); border-radius: 999px; padding: 5px 14px 5px 10px; margin-bottom: 36px; }
+  .pulse { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); position: relative; }
+  .pulse::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; background: var(--accent);
+                  opacity: .35; animation: ping 2s ease-out infinite; }
+  @keyframes ping { 0%{ transform: scale(.5); opacity: .5 } 100%{ transform: scale(1.6); opacity: 0 } }
+  h1 { font-size: clamp(40px, 7.5vw, 76px); font-weight: 600; letter-spacing: -.045em; line-height: 1.02; }
+  h1 .line2 { display: block; color: var(--faint); }
+  .subtitle { margin: 24px auto 0; max-width: 560px; font-size: 18px; color: var(--muted); }
+  .hero-cta { margin-top: 40px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary, .btn-secondary { display: inline-flex; align-items: center; font-size: 14px; font-weight: 500;
+          padding: 11px 20px; border-radius: 10px; transition: .15s; }
+  .btn-primary { background: var(--fg); color: var(--bg); }
+  .btn-primary:hover { opacity: .85; }
+  .btn-secondary { border: 1px solid var(--line); color: var(--fg); background: var(--card); }
+  .btn-secondary:hover { border-color: var(--muted); }
 
   /* ── TERMINAL ── */
-  .terminal-wrap {
-    width: 100%;
-    flex: 1 1 460px;
-    max-width: 560px;
-    animation: fadeUp 0.5s 0.4s ease both;
-  }
+  .terminal { margin: 72px auto 0; max-width: 760px; background: var(--term); color: #e5e5e5; border-radius: 14px;
+              border: 1px solid var(--line); text-align: left; overflow: hidden;
+              box-shadow: 0 30px 80px -30px rgba(0,0,0,.35); }
+  .terminal-bar { display: flex; align-items: center; gap: 7px; padding: 13px 16px; border-bottom: 1px solid var(--term-line); }
+  .terminal-bar b { width: 11px; height: 11px; border-radius: 50%; background: #2a2a2a; }
+  .terminal-title { flex: 1; text-align: center; font-size: 12px; color: #737373; margin-right: 47px; }
+  .terminal-body { padding: 20px 24px 24px; font-family: var(--font-mono); font-size: 13px; line-height: 1.85;
+                   white-space: pre; overflow-x: auto; min-height: 420px; }
+  .t-dim{ color:#737373 } .t-faint{ color:#525252 } .t-ok{ color:#4ade80 } .t-url{ color:#fff }
+  .t-get{ color:#60a5fa } .t-post{ color:#f472b6 } .t-put{ color:#fbbf24 } .t-del{ color:#f87171 }
+  .caret { display: inline-block; width: 8px; height: 15px; background: #e5e5e5; vertical-align: -3px;
+           animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50%{ opacity: 0 } }
 
-  .terminal {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 0 0 1px rgba(0,229,255,0.04), 0 40px 80px rgba(0,0,0,0.7);
-    text-align: left;
-  }
+  /* ── SECTIONS ── */
+  section.block { border-top: 1px solid var(--line); padding: 96px 0; margin-top: 96px; }
+  section.block + section.block { margin-top: 0; }
+  .section-label { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint);
+                   margin-bottom: 16px; text-align: center; }
+  .section-title { font-size: clamp(28px, 4vw, 40px); font-weight: 600; letter-spacing: -.035em; line-height: 1.1;
+                   text-align: center; }
+  .section-sub { color: var(--muted); text-align: center; margin: 14px auto 56px; max-width: 560px; font-size: 16px; }
 
-  .terminal-bar {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.85rem 1.2rem;
-    background: var(--card);
-    border-bottom: 1px solid var(--border);
-  }
-
-  .dot { width: 11px; height: 11px; border-radius: 50%; }
-  .dot-r { background: #ff5f57; }
-  .dot-y { background: #febc2e; }
-  .dot-g { background: #28c840; }
-
-  .terminal-title {
-    flex: 1;
-    text-align: center;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
-    color: var(--dim);
-    letter-spacing: 0.06em;
-  }
-
-  .terminal-body {
-    padding: 1.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.79rem;
-    line-height: 1.9;
-    min-height: 300px; /* fallback until JS measures the real content height */
-    overflow: hidden;
-  }
-
-  .t-line { display: flex; align-items: flex-start; gap: 0.5rem; opacity: 0; }
-  .t-line.show { animation: lineIn 0.25s ease forwards; }
-  .t-blank { height: 0.5rem; }
-
-  @keyframes lineIn {
-    from { opacity: 0; transform: translateX(-6px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
-
-  .t-prompt { color: var(--green); flex-shrink: 0; }
-  .t-cmd    { color: var(--text); }
-  .t-out    { color: var(--muted); padding-left: 1rem; }
-
-  .cursor {
-    display: inline-block;
-    width: 8px; height: 15px;
-    background: var(--accent);
-    vertical-align: middle;
-    animation: blink 1s step-end infinite;
-    box-shadow: 0 0 8px var(--accent);
-  }
-  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
-
-  /* ── SHARED SECTION ── */
-  .section-label {
-    font-family: var(--font-display);
-    font-size: 0.68rem;
-    color: var(--accent);
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-    text-align: center;
-  }
-
-  .section-title {
-    font-family: var(--font-display);
-    font-size: clamp(2rem, 5vw, 3.2rem);
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    text-align: center;
-    margin-bottom: 0.75rem;
-    line-height: 1.05;
-  }
-
-  .section-sub {
-    font-family: var(--font-body);
-    color: var(--muted);
-    text-align: center;
-    margin-bottom: 4rem;
-    font-size: 1.1rem;
-    font-weight: 400;
-    letter-spacing: 0.03em;
-  }
+  /* ── ARCHITECTURE ── */
+  .flow { display: flex; align-items: stretch; justify-content: center; flex-wrap: nowrap; }
+  .flow-node { flex: 1 1 0; max-width: 210px; border: 1px solid var(--line); background: var(--card);
+               border-radius: 12px; padding: 20px 18px; text-align: center; }
+  .flow-node.accent { border-color: var(--fg); }
+  .flow-title { font-size: 14px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 4px; }
+  .flow-desc { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .wire { flex: 0 0 48px; align-self: center; height: 1px; background: var(--line); position: relative; overflow: hidden; }
+  .wire::after { content: ""; position: absolute; top: 0; left: -30%; width: 30%; height: 100%; background: var(--fg);
+                 animation: flow 2.2s linear infinite; }
+  .wire.back::after { background: var(--accent); animation-direction: reverse; animation-delay: -1.1s; }
+  @keyframes flow { to { left: 100%; } }
+  .flow-legend { display: flex; justify-content: center; gap: 28px; flex-wrap: wrap; margin-top: 36px;
+                 font-size: 13px; color: var(--muted); }
+  .flow-legend i { display: inline-block; width: 14px; height: 2px; vertical-align: middle; margin-right: 8px; }
 
   /* ── STEPS ── */
-  .steps-section {
-    position: relative;
-    z-index: 1;
-    padding: 7rem 2rem;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .steps {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-    gap: 1.5rem;
-  }
-
-  .step-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 2rem;
-    position: relative;
-    overflow: hidden;
-    transition: all 0.3s;
-  }
-
-  .step-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
-    transform: scaleX(0);
-    transform-origin: left;
-    transition: transform 0.4s;
-  }
-
-  .step-card:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-5px); box-shadow: 0 20px 40px rgba(0,0,0,0.4); }
-  .step-card:hover::after { transform: scaleX(1); }
-
-  .step-num {
-    font-family: var(--font-display);
-    font-size: 0.62rem;
-    color: var(--accent);
-    margin-bottom: 1rem;
-    font-weight: 700;
-    letter-spacing: 0.22em;
-    text-transform: uppercase;
-  }
-
-  .step-title {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 700;
-    margin-bottom: 0.75rem;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-  }
-
-  .step-desc {
-    font-family: var(--font-body);
-    color: var(--muted);
-    font-size: 1rem;
-    line-height: 1.6;
-    margin-bottom: 1.5rem;
-    font-weight: 400;
-  }
-
-  .step-code {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 0.9rem 1.1rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--green);
-    line-height: 1.8;
-  }
-  .step-code .cmd-prefix { color: var(--dim); }
-  .step-code .comment { color: var(--dim); }
-  .step-code .url { color: var(--accent); }
-  .step-code .ok { color: var(--green); }
-
-  /* ── FLOW DIAGRAM ── */
-  .flow-section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem 7rem;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .flow-diagram {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 0;
-    margin-top: 3.5rem;
-  }
-
-  .flow-node {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    padding: 1.5rem 1.25rem;
-    min-width: 150px;
-    text-align: center;
-    transition: all 0.3s;
-  }
-  .flow-node:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-4px); }
-
-  .flow-node-accent {
-    border-color: rgba(0,229,255,0.3);
-    box-shadow: 0 0 30px rgba(0,229,255,0.08);
-  }
-
-  .flow-icon { font-size: 1.7rem; margin-bottom: 0.7rem; }
-
-  .flow-title {
-    font-family: var(--font-display);
-    font-size: 0.82rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 0.4rem;
-  }
-
-  .flow-desc {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--muted);
-  }
-
-  .flow-rail {
-    position: relative;
-    flex: 1 1 70px;
-    min-width: 50px;
-    max-width: 100px;
-    height: 2px;
-    background: var(--border);
-    margin: 0 0.35rem;
-  }
-
-  .flow-packet {
-    position: absolute;
-    top: 50%;
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    transform: translateY(-50%);
-    box-shadow: 0 0 8px currentColor;
-  }
-  .flow-packet.req { background: var(--accent2); color: var(--accent2); animation: packetForward 3s linear infinite; }
-  .flow-packet.res { background: var(--accent);  color: var(--accent);  animation: packetBack 3s linear infinite; }
-
-  @keyframes packetForward {
-    0%   { left: 0;    opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { left: 100%; opacity: 0; }
-  }
-  @keyframes packetBack {
-    0%   { left: 100%; opacity: 0; }
-    8%   { opacity: 1; }
-    92%  { opacity: 1; }
-    100% { left: 0;    opacity: 0; }
-  }
-
-  .flow-legend {
-    display: flex;
-    justify-content: center;
-    flex-wrap: wrap;
-    gap: 2rem;
-    margin-top: 3rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--muted);
-  }
-
-  .dot-legend {
-    display: inline-block;
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    margin-right: 0.5rem;
-    vertical-align: middle;
-  }
-  .dot-legend.req { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
-  .dot-legend.res { background: var(--accent);  box-shadow: 0 0 6px var(--accent); }
-
-  @media (max-width: 820px) {
-    .flow-diagram { flex-direction: column; }
-    .flow-rail { width: 2px; height: 44px; max-width: none; flex: none; margin: 0.35rem 0; }
-    .flow-packet { left: 50%; transform: translateX(-50%); }
-    @keyframes packetForward {
-      0%   { top: 0;    opacity: 0; }
-      8%   { opacity: 1; }
-      92%  { opacity: 1; }
-      100% { top: 100%; opacity: 0; }
-    }
-    @keyframes packetBack {
-      0%   { top: 100%; opacity: 0; }
-      8%   { opacity: 1; }
-      92%  { opacity: 1; }
-      100% { top: 0;    opacity: 0; }
-    }
-  }
+  .steps { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--line); border-radius: 14px;
+           overflow: hidden; background: var(--card); }
+  .step { padding: 32px 28px; display: flex; flex-direction: column; }
+  .step + .step { border-left: 1px solid var(--line); }
+  .step-num { font-family: var(--font-mono); font-size: 12px; color: var(--faint); margin-bottom: 18px; }
+  .step-title { font-size: 16px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 8px; }
+  .step-desc { font-size: 14.5px; color: var(--muted); margin-bottom: 22px; flex: 1; }
+  .step-code { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px;
+               font-family: var(--font-mono); font-size: 12.5px; line-height: 1.85; overflow-x: auto; white-space: nowrap; }
+  .step-code .p { color: var(--faint); user-select: none; }
+  .step-code .comment { color: var(--faint); }
+  .step-code .ok { color: var(--accent); }
 
   /* ── FEATURES ── */
-  .features-section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem 7rem;
-    max-width: 1100px;
-    margin: 0 auto;
-  }
-
-  .features-marquee {
-    position: relative;
-    z-index: 1;
-    width: 100vw;
-    margin-left: calc(50% - 50vw);
-    overflow: hidden;
-    margin-top: 3rem;
-    padding: 0.5rem 0 1rem;
-    -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-            mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent);
-  }
-
-  .features-track {
-    display: flex;
-    gap: 1rem;
-    width: max-content;
-    animation: marquee 32s linear infinite;
-  }
-  .features-marquee:hover .features-track { animation-play-state: paused; }
-
-  /* Shifts by exactly one full set's period (7 cards + 7 gaps — .feature is
-     260px, gap is 1rem) so the duplicated second set lands pixel-perfectly
-     where the first set started — a plain -50% is off by half a gap because
-     the duplicated content has an odd total gap count, which shows up as a
-     visible stutter right as the loop wraps past the last card. */
-  @keyframes marquee {
-    from { transform: translateX(0); }
-    to   { transform: translateX(calc(-1820px - 7rem)); }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .features-track { animation: none; }
-  }
-
-  .feature {
-    flex: 0 0 260px;
-    padding: 1.8rem;
-    border: 1px solid var(--border);
-    border-radius: 8px;
-    background: var(--card);
-    transition: all 0.3s;
-    position: relative;
-    overflow: hidden;
-  }
-
-  @media (max-width: 640px) {
-    .feature { flex-basis: 78vw; }
-  }
-
-  .feature::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(0,229,255,0.03), transparent);
-    opacity: 0;
-    transition: opacity 0.3s;
-  }
-  .feature:hover { border-color: rgba(0,229,255,0.2); transform: translateY(-3px); }
-  .feature:hover::before { opacity: 1; }
-
-  .feature-icon { font-size: 1.6rem; margin-bottom: 1rem; }
-
-  .feature-title {
-    font-family: var(--font-display);
-    font-size: 0.9rem;
-    font-weight: 700;
-    margin-bottom: 0.5rem;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .feature-desc {
-    font-family: var(--font-body);
-    font-size: 0.95rem;
-    color: var(--muted);
-    line-height: 1.55;
-    font-weight: 400;
-  }
+  .features { display: grid; grid-template-columns: repeat(4, 1fr); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+  .feature { padding: 28px 24px 32px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .feature-n { font-family: var(--font-mono); font-size: 12px; color: var(--faint); margin-bottom: 16px; }
+  .feature-title { font-size: 15px; font-weight: 600; letter-spacing: -.01em; margin-bottom: 6px; }
+  .feature-desc { font-size: 14px; color: var(--muted); }
+  .platforms { display: flex; flex-wrap: wrap; gap: 6px; }
+  .platform-badge { font-size: 12px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; }
 
   /* ── CTA ── */
-  .cta-section {
-    position: relative;
-    z-index: 1;
-    padding: 4rem 2rem 6rem;
-    text-align: center;
-  }
+  .cta { text-align: center; }
+  .cta h2 { font-size: clamp(32px, 5vw, 52px); font-weight: 600; letter-spacing: -.04em; line-height: 1.05; }
+  .cta p { color: var(--muted); margin: 14px 0 36px; font-size: 17px; }
+  .install { display: inline-flex; align-items: center; gap: 14px; background: var(--card); border: 1px solid var(--line);
+             border-radius: 12px; padding: 12px 12px 12px 20px; font-family: var(--font-mono); font-size: 15px; cursor: pointer; }
+  .install .p { color: var(--faint); user-select: none; }
+  .copy-btn { border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; border-radius: 8px;
+              padding: 6px 12px; font: 500 13px var(--font-body); transition: .15s; }
+  .copy-btn:hover { color: var(--fg); border-color: var(--muted); }
+  .copy-btn.ok { color: var(--accent); border-color: var(--accent); }
+  .cta .btn-primary { margin-top: 28px; }
 
-  .cta-box {
-    max-width: 700px;
-    margin: 0 auto;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 3.5rem 2rem;
-    position: relative;
-    overflow: hidden;
+  @media (max-width: 900px) {
+    .features { grid-template-columns: repeat(2, 1fr); }
   }
-
-  .cta-box::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(135deg, rgba(0,229,255,0.04), rgba(139,92,246,0.04));
-  }
-
-  .cta-box::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 10%; right: 10%;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, var(--accent), transparent);
-  }
-
-  .cta-box h2 {
-    font-family: var(--font-display);
-    font-size: clamp(1.8rem, 4vw, 2.5rem);
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    margin-bottom: 0.75rem;
-    position: relative;
-  }
-
-  .cta-box p {
-    font-family: var(--font-body);
-    color: var(--muted);
-    margin-bottom: 2.5rem;
-    position: relative;
-    font-size: 1.05rem;
-    letter-spacing: 0.03em;
-  }
-
-  .install-box {
-    display: inline-flex;
-    align-items: center;
-    gap: 1.2rem;
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 5px;
-    padding: 1rem 1.6rem;
-    font-family: var(--font-mono);
-    font-size: 0.95rem;
-    color: var(--green);
-    margin-bottom: 2rem;
-    position: relative;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .install-box:hover { border-color: var(--accent); box-shadow: 0 0 20px rgba(0,229,255,0.1); }
-
-  .copy-btn {
-    font-family: var(--font-display);
-    font-size: 0.62rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    border: 1px solid var(--border);
-    padding: 0.25rem 0.7rem;
-    border-radius: 3px;
-    cursor: pointer;
-    background: none;
-    color: var(--muted);
-    transition: all 0.2s;
-  }
-  .copy-btn:hover { border-color: var(--accent); color: var(--accent); }
-
-  /* ── PLATFORMS ── */
-  .platforms {
-    display: flex;
-    gap: 0.75rem;
-    justify-content: center;
-    flex-wrap: wrap;
-    margin-top: 2rem;
-  }
-
-  .platform-badge {
-    font-family: var(--font-display);
-    font-size: 0.65rem;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    padding: 0.3rem 0.85rem;
-    border-radius: 3px;
-    border: 1px solid var(--border);
-    color: var(--muted);
+  @media (max-width: 760px) {
+    .hero { padding: 56px 0 24px; }
+    .subtitle { font-size: 16px; }
+    .terminal { margin-top: 48px; }
+    .terminal-body { font-size: 11.5px; padding: 16px; min-height: 380px; }
+    section.block { padding: 64px 0; margin-top: 64px; }
+    .flow { flex-direction: column; align-items: center; }
+    .flow-node { max-width: 280px; width: 100%; }
+    .wire { flex: 0 0 28px; width: 1px; height: 28px; }
+    .wire::after { left: 0; top: -30%; width: 100%; height: 30%; animation-name: flowv; }
+    @keyframes flowv { to { top: 100%; } }
+    .steps { grid-template-columns: 1fr; }
+    .step + .step { border-left: 0; border-top: 1px solid var(--line); }
+    .features { grid-template-columns: 1fr; }
+    .install { font-size: 14px; }
   }
 `;
 
 const LEGAL_STYLE = `
-  .legal-wrap { max-width: 760px; margin: 0 auto; padding: 8rem 2rem 6rem; position: relative; z-index: 1; }
-  .legal-label {
-    font-family: var(--font-display);
-    font-size: .7rem;
-    color: var(--accent);
-    letter-spacing: .2em;
-    text-transform: uppercase;
-    margin-bottom: 1rem;
-  }
-  .legal-wrap h1 {
-    font-family: var(--font-display);
-    font-size: clamp(2rem, 4vw, 2.8rem);
-    font-weight: 800;
-    letter-spacing: .03em;
-    text-transform: uppercase;
-    margin-bottom: .6rem;
-  }
-  .legal-wrap .updated { color: var(--muted); font-family: var(--font-mono); font-size: .8rem; margin-bottom: 3rem; }
-  .legal-wrap h2 {
-    font-family: var(--font-display);
-    font-size: 1.15rem;
-    font-weight: 700;
-    letter-spacing: .04em;
-    text-transform: uppercase;
-    color: var(--text);
-    margin: 2.6rem 0 1rem;
-  }
-  .legal-wrap p { color: var(--muted); line-height: 1.75; font-size: 1rem; margin-bottom: 1rem; }
-  .legal-wrap ul { color: var(--muted); line-height: 1.75; font-size: 1rem; margin: 0 0 1rem 1.3rem; }
-  .legal-wrap li { margin-bottom: .5rem; }
-  .legal-wrap strong { color: var(--text); }
-  .legal-wrap a { color: var(--accent); text-decoration: none; }
-  .legal-wrap a:hover { text-decoration: underline; }
-  .legal-wrap code {
-    font-family: var(--font-mono);
-    font-size: .9em;
-    background: var(--surface);
-    padding: .15rem .4rem;
-    border-radius: 4px;
-    border: 1px solid var(--border);
-  }
+  .legal-wrap { max-width: 720px; margin: 0 auto; padding: 72px 24px 64px; }
+  .legal-label { font-size: 12px; letter-spacing: .14em; text-transform: uppercase; color: var(--faint); margin-bottom: 16px; }
+  .legal-wrap h1 { font-size: clamp(32px, 5vw, 48px); font-weight: 600; letter-spacing: -.04em; line-height: 1.05; margin-bottom: 12px; }
+  .legal-wrap .updated { color: var(--faint); font-family: var(--font-mono); font-size: 13px; margin-bottom: 48px; }
+  .legal-wrap h2 { font-size: 18px; font-weight: 600; letter-spacing: -.015em; margin: 44px 0 12px; }
+  .legal-wrap p { color: var(--muted); line-height: 1.75; font-size: 15.5px; margin-bottom: 14px; }
+  .legal-wrap ul { color: var(--muted); line-height: 1.75; font-size: 15.5px; margin: 0 0 14px 20px; }
+  .legal-wrap li { margin-bottom: 6px; }
+  .legal-wrap strong { color: var(--fg); font-weight: 600; }
+  .legal-wrap a { color: var(--fg); text-decoration: underline; text-underline-offset: 3px; text-decoration-color: var(--dim); }
+  .legal-wrap a:hover { text-decoration-color: var(--fg); }
+  .legal-wrap code { font-family: var(--font-mono); font-size: .88em; background: var(--surface); padding: 2px 6px;
+                     border-radius: 5px; border: 1px solid var(--line); }
 `;
 
 function siteNav() {
   return `
 <nav>
-  <div class="logo"><img src="/logo-expose127.png" alt="expose127 logo" width="150"></div>
+  <div class="nav-inner">
+  ${logoMark('/')}
   <button class="nav-toggle" id="nav-toggle" aria-label="Toggle menu" aria-expanded="false" aria-controls="nav-links">
     <span></span><span></span><span></span>
   </button>
@@ -898,6 +233,7 @@ function siteNav() {
     <a href="https://npmjs.com/package/expose127" target="_blank">npm</a>
     <a href="/dashboard">Dashboard</a>
     <a href="https://npmjs.com/package/expose127" class="nav-cta" target="_blank">Get started →</a>
+  </div>
   </div>
 </nav>
 <script>
@@ -921,11 +257,15 @@ function siteNav() {
 function siteFooter() {
   return `
 <footer>
-  expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
-  <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
-  <a href="/terms">Terms</a> &nbsp;·&nbsp;
-  <a href="https://npmjs.com/package/expose127" target="_blank">npm</a> &nbsp;·&nbsp;
-  MIT License
+  <div class="footer-inner">
+    <span>expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a></span>
+    <span class="footer-links">
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="https://npmjs.com/package/expose127" target="_blank">npm</a>
+      <span>MIT License</span>
+    </span>
+  </div>
 </footer>`;
 }
 
@@ -1028,362 +368,218 @@ function renderLanding() {
     }
   }
   </script>
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;700&family=Oxanium:wght@300;400;500;600;700;800&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  ${FONT_LINK}
   <style>${SITE_BASE_STYLE}${LANDING_STYLE}</style>
 </head>
 <body>
-
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
-<div class="orb orb3"></div>
 ${siteNav()}
 
+<div class="wrap">
 <section class="hero">
-  <div class="hero-inner">
-    <div class="hero-content">
-      <div class="badge"><div class="badge-dot"></div>v1.0.5 — live on npm</div>
+  <div class="pill"><span class="pulse"></span>v1.0.5 — live on npm</div>
 
-      <h1>
-        <span class="line1">Your localhost,</span>
-        <span class="line2">live in seconds.</span>
-      </h1>
+  <h1>
+    <span class="line1">Your localhost,</span>
+    <span class="line2">live in seconds.</span>
+  </h1>
 
-      <p class="subtitle">
-        expose127 creates an instant public HTTPS URL for any port on your machine.
-        Share your Laravel, Node, React — no config, no account needed.
-      </p>
+  <p class="subtitle">
+    expose127 creates an instant public HTTPS URL for any port on your machine.
+    Share your Laravel, Node, React — no config, no account needed.
+  </p>
 
-      <div class="hero-cta">
-        <a href="#how" class="btn-primary">See how it works</a>
-        <a href="https://npmjs.com/package/expose127" target="_blank" class="btn-secondary">View on npm →</a>
-      </div>
-    </div>
+  <div class="hero-cta">
+    <a href="#how" class="btn-primary">See how it works</a>
+    <a href="https://npmjs.com/package/expose127" target="_blank" class="btn-secondary">View on npm →</a>
+  </div>
 
-    <div class="terminal-wrap">
-      <div class="terminal">
-        <div class="terminal-bar">
-          <div class="dot dot-r"></div>
-          <div class="dot dot-y"></div>
-          <div class="dot dot-g"></div>
-          <div class="terminal-title">PowerShell — expose127</div>
-        </div>
-        <div class="terminal-body" id="terminal"></div>
-      </div>
-    </div>
+  <div class="terminal" aria-hidden="true">
+    <div class="terminal-bar"><b></b><b></b><b></b><div class="terminal-title">PowerShell — expose127</div></div>
+    <div class="terminal-body" id="terminal"></div>
   </div>
 </section>
 
-<section class="flow-section" id="architecture">
-  <div class="section-label reveal">// architecture</div>
+<section class="block" id="architecture">
+  <div class="section-label reveal">Architecture</div>
   <h2 class="section-title reveal">expose127 + hostmargin, working together</h2>
   <p class="section-sub reveal">One outbound connection from your machine — hostmargin's edge does the rest.</p>
 
-  <div class="flow-diagram reveal">
-    <div class="flow-node">
-      <div class="flow-icon">🖥️</div>
-      <div class="flow-title">Your machine</div>
-      <div class="flow-desc">localhost:8000</div>
-    </div>
-
-    <div class="flow-rail">
-      <div class="flow-packet req"></div>
-      <div class="flow-packet res" style="animation-delay: 1.5s"></div>
-    </div>
-
-    <div class="flow-node">
-      <div class="flow-icon">⚙️</div>
-      <div class="flow-title">expose127 CLI</div>
-      <div class="flow-desc">persistent tunnel client</div>
-    </div>
-
-    <div class="flow-rail">
-      <div class="flow-packet req" style="animation-delay: 0.5s"></div>
-      <div class="flow-packet res" style="animation-delay: 2s"></div>
-    </div>
-
-    <div class="flow-node flow-node-accent">
-      <div class="flow-icon">🛰️</div>
-      <div class="flow-title">hostmargin edge</div>
-      <div class="flow-desc">TLS · routing · hmrg.xyz</div>
-    </div>
-
-    <div class="flow-rail">
-      <div class="flow-packet req" style="animation-delay: 1s"></div>
-      <div class="flow-packet res" style="animation-delay: 2.5s"></div>
-    </div>
-
-    <div class="flow-node">
-      <div class="flow-icon">🌐</div>
-      <div class="flow-title">Public visitor</div>
-      <div class="flow-desc">https://myapp.hmrg.xyz</div>
-    </div>
+  <div class="flow reveal">
+    <div class="flow-node"><div class="flow-title">Your machine</div><div class="flow-desc">localhost:8000</div></div>
+    <div class="wire"></div>
+    <div class="flow-node"><div class="flow-title">expose127 CLI</div><div class="flow-desc">persistent tunnel client</div></div>
+    <div class="wire"></div>
+    <div class="flow-node accent"><div class="flow-title">hostmargin edge</div><div class="flow-desc">TLS · routing · hmrg.xyz</div></div>
+    <div class="wire back"></div>
+    <div class="flow-node"><div class="flow-title">Public visitor</div><div class="flow-desc">https://myapp.hmrg.xyz</div></div>
   </div>
 
   <div class="flow-legend reveal">
-    <span><span class="dot-legend req"></span>Incoming request</span>
-    <span><span class="dot-legend res"></span>Response over the tunnel</span>
+    <span><i style="background:var(--fg)"></i>Incoming request</span>
+    <span><i style="background:var(--accent)"></i>Response over the tunnel</span>
   </div>
 </section>
 
-<section class="steps-section" id="how">
-  <div class="section-label reveal">// how it works</div>
+<section class="block" id="how">
+  <div class="section-label reveal">How it works</div>
   <h2 class="section-title reveal">Three steps to go public</h2>
   <p class="section-sub reveal">No sign-up. No dashboard. Just one command.</p>
 
-  <div class="steps">
-    <div class="step-card reveal">
+  <div class="steps reveal">
+    <div class="step">
       <div class="step-num">Step 01</div>
       <div class="step-title">Start your local server</div>
       <div class="step-desc">Run your Laravel, Node.js, React or any app locally as you normally would.</div>
       <div class="step-code">
-        <div><span class="cmd-prefix">$ </span>php artisan serve</div>
-        <div><span class="cmd-prefix">$ </span>npm run dev</div>
-        <div><span class="cmd-prefix">$ </span>python manage.py runserver</div>
+        <div><span class="p">$ </span>php artisan serve</div>
+        <div><span class="p">$ </span>npm run dev</div>
+        <div><span class="p">$ </span>python manage.py runserver</div>
       </div>
     </div>
-    <div class="step-card reveal">
+    <div class="step">
       <div class="step-num">Step 02</div>
       <div class="step-title">Run expose127</div>
       <div class="step-desc">Point expose127 at your local port. No install needed — npx runs it instantly.</div>
       <div class="step-code">
-        <div><span class="cmd-prefix">$ </span>npx expose127 8000</div>
-        <div class="comment" style="margin-top:0.4rem"># with a custom subdomain:</div>
-        <div><span class="cmd-prefix">$ </span>npx expose127 8000 --subdomain myapp</div>
+        <div><span class="p">$ </span>npx expose127 8000</div>
+        <div class="comment"># with a custom subdomain:</div>
+        <div><span class="p">$ </span>npx expose127 8000 --subdomain myapp</div>
       </div>
     </div>
-    <div class="step-card reveal">
+    <div class="step">
       <div class="step-num">Step 03</div>
       <div class="step-title">Share the URL</div>
       <div class="step-desc">Get an instant public HTTPS URL powered by hostmargin.com. Share it with anyone.</div>
       <div class="step-code">
-        <div class="url">https://myapp.hmrg.xyz</div>
-        <div class="ok" style="margin-top:0.5rem">✔  Live — share with anyone</div>
+        <div>https://myapp.hmrg.xyz</div>
+        <div class="ok">✔  Live — share with anyone</div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="features-section" id="features">
-  <div class="section-label reveal">// features</div>
-  <h2 class="section-title reveal">Everything you need</h2>
+<section class="block" id="features">
+  <div class="section-label reveal">Features</div>
+  <h2 class="section-title reveal" style="margin-bottom:56px">Everything you need</h2>
 
-  <div class="features-marquee reveal">
-    <div class="features-track">
-      <div class="feature">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">Zero config</div>
-        <div class="feature-desc">No account, no dashboard, no YAML. One command and you're live.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🔒</div>
-        <div class="feature-title">HTTPS by default</div>
-        <div class="feature-desc">Every tunnel URL is served over HTTPS via Cloudflare. Secure out of the box.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🌍</div>
-        <div class="feature-title">Custom subdomains</div>
-        <div class="feature-desc">Use --subdomain to get a fixed, memorable URL every time.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🔄</div>
-        <div class="feature-title">Auto reconnect</div>
-        <div class="feature-desc">Lost connection? expose127 reconnects with exponential back-off.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">📊</div>
-        <div class="feature-title">Live request log</div>
-        <div class="feature-desc">See every request in real time — method, status, path, duration.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">💻</div>
-        <div class="feature-title">Cross-platform</div>
-        <div class="feature-desc">Works on Windows, macOS and Linux. Node.js 16+ required.</div>
-      </div>
-      <div class="feature">
-        <div class="feature-icon">🗂️</div>
-        <div class="feature-title">Optional dashboard</div>
-        <div class="feature-desc">Log in with your hostmargin account to manage API tokens, see active tunnels, and browse request history.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">⚡</div>
-        <div class="feature-title">Zero config</div>
-        <div class="feature-desc">No account, no dashboard, no YAML. One command and you're live.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">🔒</div>
-        <div class="feature-title">HTTPS by default</div>
-        <div class="feature-desc">Every tunnel URL is served over HTTPS via Cloudflare. Secure out of the box.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">🌍</div>
-        <div class="feature-title">Custom subdomains</div>
-        <div class="feature-desc">Use --subdomain to get a fixed, memorable URL every time.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">🔄</div>
-        <div class="feature-title">Auto reconnect</div>
-        <div class="feature-desc">Lost connection? expose127 reconnects with exponential back-off.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">📊</div>
-        <div class="feature-title">Live request log</div>
-        <div class="feature-desc">See every request in real time — method, status, path, duration.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">💻</div>
-        <div class="feature-title">Cross-platform</div>
-        <div class="feature-desc">Works on Windows, macOS and Linux. Node.js 16+ required.</div>
-      </div>
-      <div class="feature" aria-hidden="true">
-        <div class="feature-icon">🗂️</div>
-        <div class="feature-title">Optional dashboard</div>
-        <div class="feature-desc">Log in with your hostmargin account to manage API tokens, see active tunnels, and browse request history.</div>
+  <div class="features reveal">
+    <div class="feature"><div class="feature-n">01</div><div class="feature-title">Zero config</div><div class="feature-desc">No account, no dashboard, no YAML. One command and you're live.</div></div>
+    <div class="feature"><div class="feature-n">02</div><div class="feature-title">HTTPS by default</div><div class="feature-desc">Every tunnel URL is served over HTTPS via Cloudflare. Secure out of the box.</div></div>
+    <div class="feature"><div class="feature-n">03</div><div class="feature-title">Custom subdomains</div><div class="feature-desc">Use --subdomain to get a fixed, memorable URL every time.</div></div>
+    <div class="feature"><div class="feature-n">04</div><div class="feature-title">Auto reconnect</div><div class="feature-desc">Lost connection? expose127 reconnects with exponential back-off.</div></div>
+    <div class="feature"><div class="feature-n">05</div><div class="feature-title">Live request log</div><div class="feature-desc">See every request in real time — method, status, path, duration.</div></div>
+    <div class="feature"><div class="feature-n">06</div><div class="feature-title">Cross-platform</div><div class="feature-desc">Works on Windows, macOS and Linux. Node.js 16+ required.</div></div>
+    <div class="feature"><div class="feature-n">07</div><div class="feature-title">Optional dashboard</div><div class="feature-desc">Log in with your hostmargin account to manage API tokens, see active tunnels, and browse request history.</div></div>
+    <div class="feature">
+      <div class="feature-n">08</div><div class="feature-title">Works with</div>
+      <div class="platforms">
+        <span class="platform-badge">Windows ✓</span>
+        <span class="platform-badge">macOS ✓</span>
+        <span class="platform-badge">Linux ✓</span>
+        <span class="platform-badge">Node 16+ ✓</span>
+        <span class="platform-badge">Laravel ✓</span>
+        <span class="platform-badge">Node.js ✓</span>
+        <span class="platform-badge">React ✓</span>
+        <span class="platform-badge">Django ✓</span>
       </div>
     </div>
   </div>
-
-  <div class="platforms reveal">
-    <span class="platform-badge">Windows ✓</span>
-    <span class="platform-badge">macOS ✓</span>
-    <span class="platform-badge">Linux ✓</span>
-    <span class="platform-badge">Node 16+ ✓</span>
-    <span class="platform-badge">Laravel ✓</span>
-    <span class="platform-badge">Node.js ✓</span>
-    <span class="platform-badge">React ✓</span>
-    <span class="platform-badge">Django ✓</span>
-  </div>
 </section>
 
-<section class="cta-section">
-  <div class="cta-box reveal">
+<section class="block cta">
+  <div class="reveal">
     <h2>Ready to go public?</h2>
     <p>No sign-up needed. Works right now.</p>
-    <div class="install-box" onclick="copyCmd()">
-      <span>$ npx expose127 8000</span>
-      <button class="copy-btn" id="copy-btn">copy</button>
+    <div class="install" onclick="copyCmd()">
+      <span class="p">$</span><span>npx expose127 8000</span>
+      <button class="copy-btn" id="copy-btn" type="button">Copy</button>
     </div>
     <br>
     <a href="https://npmjs.com/package/expose127" target="_blank" class="btn-primary">View on npm →</a>
   </div>
 </section>
+</div>
+
 ${siteFooter()}
 
 <script>
-  var lines = [
-    { type:'cmd',  text:'npx expose127 8000 --subdomain myapp' },
-    { type:'blank' },
-    { type:'out',  text:'  +--------------------------------------------------+' },
-    { type:'out',  text:'  |   EXPOSE127  --  instant public tunnel URLs      |' },
-    { type:'out',  text:'  +--------------------------------------------------+' },
-    { type:'out',  text:'  Instant public URLs  |  v1.0.5  |  hmrg.xyz' },
-    { type:'blank' },
-    { type:'ok',   text:'  ✔  Tunnel established!' },
-    { type:'blank' },
-    { type:'kv',   key:'  Public URL ', val:'https://myapp.hmrg.xyz', vc:'#00e5ff' },
-    { type:'kv',   key:'  Forwarding ', val:'https://myapp.hmrg.xyz → localhost:8000', vc:'#5a6e82' },
-    { type:'kv',   key:'  Status     ', val:'online', vc:'#00ffa3' },
-    { type:'blank' },
-    { type:'out',  text:'  ──────────────────────────────────────────────────' },
-    { type:'out',  text:'  Time       Method    Status   Path' },
-    { type:'out',  text:'  ──────────────────────────────────────────────────' },
-    { type:'req',  time:'14:23:01', method:'GET',  status:'200', path:'/' },
-    { type:'req',  time:'14:23:01', method:'GET',  status:'200', path:'/assets/app.css' },
-    { type:'req',  time:'14:23:03', method:'GET',  status:'200', path:'/assets/app.js' },
-    { type:'req',  time:'14:23:06', method:'POST', status:'201', path:'/api/login' },
-    { type:'req',  time:'14:23:09', method:'GET',  status:'200', path:'/dashboard' },
-  ];
+  (function () {
+    var term = document.getElementById('terminal');
+    var MC = { GET:'t-get', POST:'t-post', PUT:'t-put', PATCH:'t-put', DELETE:'t-del' };
+    function pad(s, n) { s = String(s); while (s.length < n) s += ' '; return s; }
 
-  var terminal = document.getElementById('terminal');
-  var idx = 0;
-
-  var sc = function (s) { return s.startsWith('2') ? '#00ffa3' : s.startsWith('3') ? '#00e5ff' : s.startsWith('4') ? '#febc2e' : '#ff5f57'; };
-  var mc = function (m) { return ({GET:'#00e5ff',POST:'#8b5cf6',PUT:'#febc2e',DELETE:'#ff5f57',PATCH:'#febc2e'})[m] || '#dde6f0'; };
-
-  var cursor = document.createElement('div');
-  cursor.className = 't-line show';
-  cursor.innerHTML = '<span class="t-prompt">$</span><span class="t-cmd"> </span><span class="cursor"></span>';
-
-  function buildLine(line) {
-    var d = document.createElement('div');
-    d.className = 't-line';
-    if (line.type === 'blank') { d.className = 't-blank'; }
-    else if (line.type === 'cmd')  { d.innerHTML = '<span class="t-prompt">$</span><span class="t-cmd"> ' + line.text + '</span>'; }
-    else if (line.type === 'out')  { d.innerHTML = '<span class="t-out">' + line.text + '</span>'; }
-    else if (line.type === 'ok')   { d.innerHTML = '<span style="color:#00ffa3;padding-left:1rem">' + line.text + '</span>'; }
-    else if (line.type === 'kv')   { d.innerHTML = '<span style="padding-left:1rem"><span style="color:#2d3f52">' + line.key + '  </span><span style="color:' + line.vc + '">' + line.val + '</span></span>'; }
-    else if (line.type === 'req')  { d.innerHTML = '<span class="t-out"><span style="color:#2d3f52">' + line.time + '  </span><span style="color:' + mc(line.method) + '">' + line.method.padEnd(8) + '</span><span style="color:' + sc(line.status) + '">' + line.status + '      </span><span style="color:#5a6e82">' + line.path + '</span></span>'; }
-    return d;
-  }
-
-  function render(line) {
-    var d = buildLine(line);
-    terminal.appendChild(d);
-    requestAnimationFrame(function () { d.classList.add('show'); });
-  }
-
-  // Measure the fully typed-out content once (off-screen clone, same width)
-  // and lock the terminal to that exact height — otherwise it grows while
-  // typing and snaps back to the CSS fallback height on every reset cycle.
-  function lockTerminalHeight() {
-    var probe = terminal.cloneNode(false);
-    probe.style.position = 'absolute';
-    probe.style.visibility = 'hidden';
-    probe.style.height = 'auto';
-    probe.style.width = terminal.getBoundingClientRect().width + 'px';
-    lines.forEach(function (line) {
-      var el = buildLine(line);
-      el.classList.add('show');
-      probe.appendChild(el);
+    // Same session as before: banner, tunnel details, then the live request log.
+    var lines = [
+      { type:'cmd', text:'npx expose127 8000 --subdomain myapp' },
+      { html:'' },
+      { html:'<span class="t-faint">  +--------------------------------------------------+</span>' },
+      { html:'<span class="t-dim">  |   EXPOSE127  --  instant public tunnel URLs      |</span>' },
+      { html:'<span class="t-faint">  +--------------------------------------------------+</span>' },
+      { html:'<span class="t-dim">  Instant public URLs  |  v1.0.5  |  hmrg.xyz</span>' },
+      { html:'' },
+      { html:'<span class="t-ok">  ✔  Tunnel established!</span>' },
+      { html:'' },
+      { html:'<span class="t-dim">  Public URL   </span><span class="t-url">https://myapp.hmrg.xyz</span>' },
+      { html:'<span class="t-dim">  Forwarding   </span>https://myapp.hmrg.xyz → localhost:8000' },
+      { html:'<span class="t-dim">  Status       </span><span class="t-ok">online</span>' },
+      { html:'' },
+      { html:'<span class="t-faint">  ──────────────────────────────────────────────────</span>' },
+      { html:'<span class="t-dim">  Time       Method    Status   Path</span>' },
+      { html:'<span class="t-faint">  ──────────────────────────────────────────────────</span>' },
+      { req:['14:23:01','GET','200','/'] },
+      { req:['14:23:01','GET','200','/assets/app.css'] },
+      { req:['14:23:03','GET','200','/assets/app.js'] },
+      { req:['14:23:06','POST','201','/api/login'] },
+      { req:['14:23:09','GET','200','/dashboard'] }
+    ];
+    lines.forEach(function (l) {
+      if (l.req) l.html = '<span class="t-dim">  ' + l.req[0] + '   </span><span class="' + MC[l.req[1]] + '">' +
+        pad(l.req[1], 10) + '</span><span class="t-ok">' + pad(l.req[2], 9) + '</span>' + l.req[3];
     });
-    document.body.appendChild(probe);
-    var h = probe.scrollHeight;
-    document.body.removeChild(probe);
-    if (h > 0) terminal.style.height = h + 'px';
-  }
 
-  lockTerminalHeight();
-  if (document.fonts && document.fonts.ready) {
-    document.fonts.ready.then(lockTerminalHeight);
-  }
-  var resizeTimer;
-  window.addEventListener('resize', function () {
-    clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(lockTerminalHeight, 150);
-  });
+    var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var out = [];
+    function draw(extra) { term.innerHTML = out.join('<br>') + (out.length ? '<br>' : '') + (extra || '') + '<span class="caret"></span>'; }
 
-  terminal.appendChild(cursor);
-  setTimeout(run, 1000);
-
-  function run() {
-    if (idx < lines.length) {
-      if (terminal.contains(cursor)) terminal.removeChild(cursor);
-      render(lines[idx]);
-      var delay = lines[idx].type === 'cmd' ? 900 : lines[idx].type === 'blank' ? 80 : 100;
-      idx++;
-      setTimeout(function () { terminal.appendChild(cursor); setTimeout(run, delay); }, 20);
-    } else {
-      setTimeout(function () { terminal.innerHTML = ''; idx = 0; terminal.appendChild(cursor); setTimeout(run, 800); }, 5000);
+    if (reduce) {
+      out = lines.map(function (l) { return l.type === 'cmd' ? '<span class="t-dim">$</span> ' + l.text : l.html; });
+      draw(); return;
     }
-  }
 
-  var obs = new IntersectionObserver(function (entries) {
-    entries.forEach(function (e, i) {
-      if (e.isIntersecting) { setTimeout(function () { e.target.classList.add('visible'); }, i * 70); obs.unobserve(e.target); }
-    });
-  }, { threshold: 0.08 });
-  document.querySelectorAll('.reveal').forEach(function (el) { obs.observe(el); });
+    var i = 0;
+    function next() {
+      if (i >= lines.length) { setTimeout(function () { out = []; i = 0; draw(); setTimeout(next, 800); }, 5000); return; }
+      var l = lines[i++];
+      if (l.type === 'cmd') {
+        var c = 0;
+        (function typeChar() {
+          draw('<span class="t-dim">$</span> ' + l.text.slice(0, c));
+          if (c++ < l.text.length) setTimeout(typeChar, 45);
+          else { out.push('<span class="t-dim">$</span> ' + l.text); setTimeout(next, 500); }
+        })();
+      } else {
+        out.push(l.html); draw();
+        setTimeout(next, l.req ? 550 : 90);
+      }
+    }
+    draw();
+    setTimeout(next, 700);
+
+    var obs = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e, k) {
+        if (e.isIntersecting) { setTimeout(function () { e.target.classList.add('visible'); }, k * 70); obs.unobserve(e.target); }
+      });
+    }, { threshold: 0.08 });
+    document.querySelectorAll('.reveal').forEach(function (el) { obs.observe(el); });
+  })();
 
   function copyCmd() {
-    navigator.clipboard.writeText('npx expose127 8000').then(function () {
-      var btn = document.getElementById('copy-btn');
-      btn.textContent = 'copied!';
-      btn.style.color = '#00ffa3';
-      btn.style.borderColor = '#00ffa3';
-      setTimeout(function () { btn.textContent = 'copy'; btn.style.color = ''; btn.style.borderColor = ''; }, 2000);
-    });
+    var btn = document.getElementById('copy-btn');
+    var done = function () {
+      btn.textContent = 'Copied'; btn.classList.add('ok');
+      setTimeout(function () { btn.textContent = 'Copy'; btn.classList.remove('ok'); }, 1600);
+    };
+    if (navigator.clipboard) navigator.clipboard.writeText('npx expose127 8000').then(done, done); else done();
   }
 </script>
 </body>
@@ -1427,16 +623,11 @@ function renderPrivacy() {
   }
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Oxanium:wght@600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${FONT_LINK}
   <style>${SITE_BASE_STYLE}${LEGAL_STYLE}</style>
 </head>
 <body>
 
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
-<div class="orb orb3"></div>
 ${siteNav()}
 
 <div class="legal-wrap">
@@ -1529,16 +720,11 @@ function renderTerms() {
   }
   </script>
 
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Oxanium:wght@600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${FONT_LINK}
   <style>${SITE_BASE_STYLE}${LEGAL_STYLE}</style>
 </head>
 <body>
 
-<div class="orb orb1"></div>
-<div class="orb orb2"></div>
-<div class="orb orb3"></div>
 ${siteNav()}
 
 <div class="legal-wrap">
@@ -1596,165 +782,150 @@ ${siteFooter()}
 
 const SHELL_STYLE = `
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-  :root{
-    --bg:#06080d;--surface:#0b0f18;--card:#0f1520;--border:#1a2535;
-    --accent:#00e5ff;--accent2:#8b5cf6;--green:#00ffa3;--red:#ff5f57;--amber:#febc2e;
-    --text:#dde6f0;--muted:#5a6e82;--dim:#2d3f52;
-    --font-display:'Oxanium',sans-serif;--font-body:'Rajdhani',sans-serif;--font-mono:'JetBrains Mono',monospace;
-  }
-  html{scroll-behavior:smooth}
-  body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:16px;min-height:100vh}
-  .bg-grid{position:fixed;inset:0;pointer-events:none;z-index:0;
-    background-image:linear-gradient(rgba(0,229,255,.025) 1px,transparent 1px),
-                      linear-gradient(90deg,rgba(0,229,255,.025) 1px,transparent 1px);
-    background-size:48px 48px}
+  ${TOKENS}
+  html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased}
+  body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.55;
+       min-height:100vh;display:flex;flex-direction:column}
 
-  nav{position:sticky;top:0;z-index:100;display:flex;align-items:center;justify-content:space-between;
-      padding:1rem 2rem;background:rgba(6,8,13,.8);backdrop-filter:blur(24px);border-bottom:1px solid var(--border)}
-  .logo{display:flex;align-items:center;gap:.6rem;text-decoration:none;font-family:var(--font-display);
-        font-weight:800;color:var(--accent);letter-spacing:.08em;text-transform:uppercase;font-size:1.05rem}
-  .logo img{display:block;height:26px;width:auto}
-  .admin-badge{font-family:var(--font-mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;
-      color:var(--red);border:1px solid var(--red);border-radius:3px;padding:.15rem .45rem;
-      text-transform:uppercase}
-  .nav-links{display:flex;gap:1.75rem;align-items:center}
-  nav a{font-family:var(--font-display);color:var(--muted);text-decoration:none;font-size:.75rem;
-        font-weight:600;letter-spacing:.1em;text-transform:uppercase;transition:color .2s}
-  nav a:hover{color:var(--accent)}
-  .nav-cta{color:var(--accent) !important;border:1px solid rgba(0,229,255,.4);padding:.4rem 1rem;border-radius:3px}
-  .nav-cta:hover{background:var(--accent) !important;color:#000 !important}
+  nav{position:sticky;top:0;z-index:100;background:color-mix(in srgb,var(--bg) 82%,transparent);
+      backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+  .nav-inner{max-width:1040px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  nav.wide .nav-inner{max-width:1500px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;font-size:15px;color:var(--fg);text-decoration:none}
+  .logo i{width:22px;height:22px;border-radius:6px;background:var(--fg);display:grid;place-items:center}
+  .logo i svg{width:14px;height:14px;stroke:var(--bg)}
+  .admin-badge{font-family:var(--font-mono);font-size:10px;font-weight:500;letter-spacing:.08em;
+      color:var(--red);border:1px solid currentColor;border-radius:999px;padding:1px 8px;text-transform:uppercase}
+  .nav-links{display:flex;gap:24px;align-items:center}
+  nav a{color:var(--muted);text-decoration:none;font-size:14px;transition:color .15s}
+  nav a.logo{color:var(--fg)}
+  nav a:hover{color:var(--fg)}
+  .nav-cta{color:var(--fg) !important;border:1px solid var(--line);padding:6px 12px;border-radius:8px}
+  .nav-cta:hover{border-color:var(--muted)}
 
-  .wrap{max-width:1000px;margin:0 auto;padding:3rem 2rem 5rem;position:relative;z-index:1}
-  h1{font-family:var(--font-display);font-size:2rem;font-weight:800;letter-spacing:.03em;
-     text-transform:uppercase;margin-bottom:.4rem;overflow-wrap:break-word}
-  .sub{color:var(--muted);margin-bottom:2rem;font-size:.95rem;letter-spacing:.01em}
-  .sub a{color:var(--accent);text-decoration:none}
-  .sub a:hover{text-decoration:underline}
+  .wrap{width:100%;max-width:1040px;margin:0 auto;padding:48px 24px 64px;flex:1}
+  h1{font-size:32px;font-weight:600;letter-spacing:-.035em;line-height:1.15;margin-bottom:6px;overflow-wrap:break-word}
+  h1 code{font-size:.85em;font-weight:500;background:none;border:0;padding:0}
+  .sub{color:var(--muted);margin-bottom:28px;font-size:14.5px}
+  .sub a{color:var(--fg);text-decoration:none}
+  .sub a:hover{text-decoration:underline;text-underline-offset:3px}
 
-  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:2rem}
-  .stat{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.25rem}
-  .stat .n{font-family:var(--font-display);font-size:1.9rem;font-weight:800;color:var(--accent);line-height:1}
-  .stat .l{color:var(--muted);font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;margin-top:.5rem}
+  .stat-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:24px}
+  .stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+  .stat .n{font-size:30px;font-weight:600;letter-spacing:-.03em;color:var(--fg);line-height:1}
+  .stat .l{color:var(--muted);font-size:13px;margin-top:8px}
 
-  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:1.75rem;margin-bottom:1.5rem}
-  .card h2{font-family:var(--font-display);font-size:.95rem;font-weight:700;letter-spacing:.09em;
-           text-transform:uppercase;margin-bottom:1.25rem;color:var(--text)}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:24px;margin-bottom:20px}
+  .card h2{font-size:15px;font-weight:600;letter-spacing:-.01em;margin-bottom:16px;color:var(--fg);
+           display:flex;align-items:center;gap:8px}
+  .card h2 .count{font-family:var(--font-mono);color:var(--faint);font-weight:400;font-size:13px}
 
   .table-scroll{overflow-x:auto}
-  table{width:100%;min-width:480px;border-collapse:collapse;font-size:.88rem}
-  th,td{text-align:left;padding:.75rem .8rem;border-bottom:1px solid var(--border)}
-  th{color:var(--muted);font-family:var(--font-display);font-weight:700;font-size:.65rem;
-     letter-spacing:.1em;text-transform:uppercase}
+  table{width:100%;min-width:480px;border-collapse:collapse;font-size:14px}
+  th,td{text-align:left;padding:11px 12px;border-bottom:1px solid var(--line)}
+  th{color:var(--faint);font-weight:500;font-size:12px}
   tbody tr:last-child td{border-bottom:none}
-  tbody tr:hover{background:rgba(0,229,255,.03)}
+  tbody tr:hover{background:var(--surface)}
 
-  code{font-family:var(--font-mono);font-size:.85em;background:var(--surface);padding:.2rem .5rem;
-       border-radius:4px;border:1px solid var(--border)}
+  code{font-family:var(--font-mono);font-size:.86em;background:var(--surface);padding:2px 7px;
+       border-radius:6px;border:1px solid var(--line)}
 
-  .empty{color:var(--muted);font-size:.9rem;text-align:center;padding:2rem 0 !important}
+  .empty{color:var(--muted);font-size:14px;text-align:center;padding:32px 0 !important}
   .empty code{white-space:nowrap}
 
-  .badge{display:inline-flex;align-items:center;padding:.15rem .6rem;border-radius:1rem;
-         font-size:.7rem;font-weight:700;font-family:var(--font-mono)}
-  .b-2xx{background:rgba(0,255,163,.1);color:var(--green)}
-  .b-3xx{background:rgba(0,229,255,.1);color:var(--accent)}
-  .b-4xx{background:rgba(254,188,46,.1);color:var(--amber)}
-  .b-5xx{background:rgba(255,95,87,.1);color:var(--red)}
-  .b-other{background:rgba(90,110,130,.15);color:var(--muted)}
+  .badge{display:inline-flex;align-items:center;padding:1px 9px;border-radius:999px;
+         font-size:12px;font-weight:500;font-family:var(--font-mono);border:1px solid currentColor}
+  .b-2xx{color:var(--green)}
+  .b-3xx{color:var(--accent2)}
+  .b-4xx{color:var(--amber)}
+  .b-5xx{color:var(--red)}
+  .b-other{color:var(--muted)}
 
-  .method{font-family:var(--font-mono);font-weight:700;font-size:.78rem;letter-spacing:.02em}
-  .m-GET{color:var(--accent)} .m-POST{color:var(--accent2)}
+  .method{font-family:var(--font-mono);font-weight:500;font-size:12.5px}
+  .m-GET{color:var(--accent2)} .m-POST{color:#db2777}
   .m-PUT,.m-PATCH{color:var(--amber)} .m-DELETE{color:var(--red)}
 
   .dot{width:7px;height:7px;border-radius:50%;display:inline-block;background:var(--green);
-       box-shadow:0 0 8px var(--green);animation:pulse 2s ease-in-out infinite;flex-shrink:0}
-  .dot.err{background:var(--amber);box-shadow:0 0 8px var(--amber)}
-  .dot.inactive{background:var(--dim);box-shadow:none;animation:none}
+       animation:pulse 2s ease-in-out infinite;flex-shrink:0}
+  .dot.err{background:var(--amber)}
+  .dot.inactive{background:var(--dim);animation:none}
 
-  .pager{align-items:center;justify-content:center;gap:1.25rem;margin-top:1.25rem}
+  .pager{align-items:center;justify-content:center;gap:16px;margin-top:16px}
   .pager button:disabled{opacity:.35;cursor:not-allowed}
-  .pager button:disabled:hover{border-color:var(--border);color:var(--text);box-shadow:none}
 
   .admin-header{display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;
-      gap:1rem 1.5rem;margin-bottom:2rem}
-  .admin-live{gap:.6rem;background:var(--card);border:1px solid var(--border);border-radius:8px;
-      padding:.6rem 1rem}
+      gap:16px 24px;margin-bottom:28px}
+  .admin-live{gap:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 14px}
   .admin-live .sep{color:var(--dim)}
-  .admin-live button{padding:.35rem .8rem;font-size:.65rem}
+  .admin-live button{padding:5px 10px;font-size:12.5px}
 
-  .table-toolbar{display:flex;justify-content:flex-end;margin-bottom:1rem}
-  .table-search{background:var(--surface);border:1px solid var(--border);color:var(--text);
-      font-family:var(--font-mono);font-size:.78rem;padding:.5rem .8rem;border-radius:4px;
-      width:100%;max-width:280px}
-  .table-search:focus{outline:none;border-color:var(--accent)}
-  .table-search::placeholder{color:var(--muted)}
-
-  .card h2{display:flex;align-items:center;gap:.6rem}
-  .card h2 .count{font-family:var(--font-mono);color:var(--muted);font-weight:400;
-      text-transform:none;letter-spacing:0;font-size:.85rem}
+  .table-toolbar{display:flex;justify-content:flex-end;margin-bottom:14px}
+  .table-search{background:var(--surface);border:1px solid var(--line);color:var(--fg);
+      font-family:var(--font-body);font-size:13.5px;padding:8px 12px;border-radius:8px;width:100%;max-width:280px}
+  .table-search:focus{outline:none;border-color:var(--muted)}
+  .table-search::placeholder{color:var(--faint)}
 
   .wrap.wide{max-width:1500px}
 
-  .admin-charts{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:1.5rem;margin-bottom:1.5rem}
-  .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));gap:1.5rem}
+  .admin-charts{display:grid;grid-template-columns:1.6fr 1fr 1fr;gap:20px;margin-bottom:20px}
+  .admin-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(560px,1fr));gap:20px}
   .admin-grid .card{margin-bottom:0}
-  @media (max-width:980px){
-    .admin-charts{grid-template-columns:1fr}
-  }
+  @media (max-width:980px){ .admin-charts{grid-template-columns:1fr} }
+  @media (max-width:640px){ .admin-grid{grid-template-columns:1fr} .wrap{padding:32px 16px 48px} .nav-inner{padding:14px 16px} }
 
   .chart-svg{width:100%;height:auto;display:block}
-  .chart-axis{stroke:var(--border);stroke-width:1}
+  .chart-axis{stroke:var(--line);stroke-width:1}
   .chart-line{stroke:#3987e5;stroke-width:2;stroke-linejoin:round;stroke-linecap:round}
   .chart-area{fill:#3987e5;fill-opacity:.12;stroke:none}
   .chart-dot{fill:#3987e5;stroke:var(--card);stroke-width:2}
   .chart-hit{cursor:default}
-  .chart-caption{margin-top:.75rem;text-align:center;font-size:.72rem}
+  .chart-caption{margin-top:12px;text-align:center;font-size:12px}
 
-  .bar-chart{display:flex;flex-direction:column;gap:.85rem}
-  .bar-row{display:grid;grid-template-columns:76px 1fr 2.75rem;align-items:center;gap:.75rem}
-  .bar-label{font-family:var(--font-mono);font-size:.7rem;color:var(--muted);text-align:right;
+  .bar-chart{display:flex;flex-direction:column;gap:12px}
+  .bar-row{display:grid;grid-template-columns:76px 1fr 2.75rem;align-items:center;gap:12px}
+  .bar-label{font-family:var(--font-mono);font-size:11.5px;color:var(--muted);text-align:right;
       white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .bar-track{background:var(--surface);border:1px solid var(--border);border-radius:4px;
-      height:20px;position:relative;overflow:hidden}
-  .bar-fill{height:100%;border-radius:3px;transition:width .3s ease;min-width:3px}
-  .bar-value{font-family:var(--font-mono);font-size:.75rem;color:var(--text);text-align:right}
+  .bar-track{background:var(--surface);border:1px solid var(--line);border-radius:6px;height:20px;position:relative;overflow:hidden}
+  .bar-fill{height:100%;border-radius:5px;transition:width .3s ease;min-width:3px}
+  .bar-value{font-family:var(--font-mono);font-size:12px;color:var(--fg);text-align:right}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .live{display:inline-flex;align-items:center;gap:.5rem;font-family:var(--font-mono);
-        font-size:.78rem;color:var(--muted)}
-  .tunnel-name{display:flex;align-items:center;gap:.6rem}
+  .live{display:inline-flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12.5px;color:var(--muted)}
+  .tunnel-name{display:flex;align-items:center;gap:10px}
 
-  button,.btn{font-family:var(--font-display);font-size:.75rem;font-weight:700;letter-spacing:.09em;
-      text-transform:uppercase;padding:.7rem 1.4rem;border-radius:4px;border:none;cursor:pointer;
-      background:var(--accent);color:#000;transition:all .2s}
-  button:hover,.btn:hover{box-shadow:0 0 24px rgba(0,229,255,.35);transform:translateY(-1px)}
-  .btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text);
-             padding:.4rem .9rem;font-size:.68rem}
-  .btn-ghost:hover{border-color:var(--accent2);color:var(--accent2);box-shadow:none;transform:none}
+  button,.btn{font-family:var(--font-body);font-size:13.5px;font-weight:500;padding:9px 16px;border-radius:8px;
+      border:1px solid var(--fg);cursor:pointer;background:var(--fg);color:var(--bg);transition:opacity .15s,border-color .15s;
+      text-decoration:none;display:inline-block}
+  button:hover,.btn:hover{opacity:.85}
+  .btn-ghost{background:transparent;border:1px solid var(--line);color:var(--fg);padding:5px 11px;font-size:13px;border-radius:8px;text-decoration:none;display:inline-block;white-space:nowrap}
+  .btn-ghost:hover{border-color:var(--muted);opacity:1}
 
-  .token-cell{display:flex;align-items:center;gap:.7rem}
-  .token-copy{background:transparent;border:1px solid var(--border);color:var(--muted);
-              padding:.25rem .65rem;font-size:.62rem}
-  .token-copy:hover{border-color:var(--accent);color:var(--accent);box-shadow:none;transform:none}
+  .token-cell{display:flex;align-items:center;gap:10px}
+  .token-copy{background:transparent;border:1px solid var(--line);color:var(--muted);padding:3px 9px;font-size:12px}
+  .token-copy:hover{color:var(--fg);border-color:var(--muted);opacity:1}
 
-  .filters{display:flex;gap:1.5rem;flex-wrap:wrap;align-items:center;margin-bottom:1.25rem}
-  .filter-field{display:flex;align-items:center;gap:.6rem}
-  .filter-field label{font-family:var(--font-display);font-size:.65rem;color:var(--muted);
-                       letter-spacing:.1em;text-transform:uppercase}
-  .filter-field select{background:var(--surface);border:1px solid var(--border);color:var(--text);
-      font-family:var(--font-mono);font-size:.78rem;padding:.4rem .7rem;border-radius:4px;cursor:pointer}
-  .filter-field select:focus{outline:none;border-color:var(--accent)}
-  .log-link{color:var(--text);text-decoration:none}
-  .log-link:hover{color:var(--accent);text-decoration:underline}
+  .filters{display:flex;gap:20px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+  .filter-field{display:flex;align-items:center;gap:8px}
+  .filter-field label{font-size:13px;color:var(--muted)}
+  .filter-field select{background:var(--card);border:1px solid var(--line);color:var(--fg);
+      font-family:var(--font-body);font-size:13.5px;padding:6px 10px;border-radius:8px;cursor:pointer}
+  .filter-field select:focus{outline:none;border-color:var(--muted)}
+  .log-link{color:var(--fg);text-decoration:none}
+  .log-link:hover{text-decoration:underline;text-underline-offset:3px}
 
-  footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;
-         color:var(--dim);font-family:var(--font-mono);font-size:.7rem;letter-spacing:.06em}
-  footer a{color:var(--muted);text-decoration:none;transition:color .2s}
-  footer a:hover{color:var(--accent)}
+  input[type=email],input[type=password]{font-family:var(--font-body) !important;border-radius:8px !important}
+  input:focus{outline:none;border-color:var(--muted) !important}
+
+  footer{border-top:1px solid var(--line)}
+  .footer-inner{max-width:1040px;margin:0 auto;padding:24px;display:flex;justify-content:space-between;gap:12px 24px;
+      flex-wrap:wrap;font-size:13px;color:var(--faint)}
+  footer a{color:var(--faint);text-decoration:none}
+  footer a:hover{color:var(--fg)}
+  .footer-links{display:flex;gap:20px;flex-wrap:wrap}
 `;
 
 function shell(title, body, navOverride, wrapClass) {
   const nav = navOverride || `
-    <a href="/" class="logo"><img src="/logo-expose127.png" alt="expose127"></a>
+    ${logoMark('/')}
     <div class="nav-links">
       <a href="/">← Site</a>
       <a href="/logout" class="nav-cta">Sign out</a>
@@ -1767,21 +938,22 @@ function shell(title, body, navOverride, wrapClass) {
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>${title} — expose127</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.ico">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Oxanium:wght@600;700;800&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+  ${FONT_LINK}
   <style>${SHELL_STYLE}</style>
 </head>
 <body>
-  <div class="bg-grid"></div>
-  <nav>${nav}</nav>
+  <nav${wrapClass ? ' class="' + wrapClass + '"' : ''}><div class="nav-inner">${nav}</div></nav>
   <div class="wrap${wrapClass ? ' ' + wrapClass : ''}">${body}</div>
   <footer>
-    expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a> &nbsp;·&nbsp;
-    <a href="/privacy">Privacy</a> &nbsp;·&nbsp;
-    <a href="/terms">Terms</a> &nbsp;·&nbsp;
-    <a href="https://npmjs.com/package/expose127" target="_blank">npm</a> &nbsp;·&nbsp;
-    MIT License
+    <div class="footer-inner">
+      <span>expose127 — a Bi Enterprises product · powered by <a href="https://hostmargin.com" target="_blank">hostmargin.com</a></span>
+      <span class="footer-links">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="https://npmjs.com/package/expose127" target="_blank">npm</a>
+        <span>MIT License</span>
+      </span>
+    </div>
   </footer>
 </body>
 </html>`;
@@ -1789,7 +961,7 @@ function shell(title, body, navOverride, wrapClass) {
 
 function adminNav(showSignOut) {
   return `
-    <a href="/admin" class="logo"><img src="/logo-expose127.png" alt="expose127"><span class="admin-badge">ADMIN</span></a>
+    ${logoMark('/admin', '<span class="admin-badge">Admin</span>')}
     <div class="nav-links">
       <a href="/">← Site</a>
       ${showSignOut ? '<a href="/admin/logout" class="nav-cta">Sign out</a>' : ''}
